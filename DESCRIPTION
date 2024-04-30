@@ -1,0 +1,19 @@
+Package: roiv
+Type: Package
+Title: ROI Analysis of COVID-19 Vaccination
+Version: 0.1.0
+Authors@R: c(
+  person("OJ", "Watson", email = "o.watson15@imperial.ac.uk", role = c("aut", "cre"))
+  )
+Description: Analysis code to conduct return on investment analysis of the first year of COVID-19 Vaccination.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports:
+    here,
+    cowplot,
+    ggplot2,
+    magrittr
+Suggests:
+    devtools
+RoxygenNote: 7.1.2
