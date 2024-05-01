@@ -13,7 +13,10 @@ Imports:
     here,
     cowplot,
     ggplot2,
-    magrittr
+    magrittr,
+    squire (>= 0.7.1)
 Suggests:
     devtools
 RoxygenNote: 7.1.2
+Remotes:  
+    github::mrc-ide/squire
