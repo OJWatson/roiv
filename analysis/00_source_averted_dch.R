@@ -3,8 +3,8 @@ library(tidyverse)
 # read in the files for the model fits
 url <- "https://github.com/mrc-ide/covid-vaccine-impact-orderly/tree/by_age/data/excess_mortality/counterfactual_data"
 
-# All the iso3cs looked at
-iso3cs <- readLines("analysis/iso3cs.txt")
+# All the iso3cs looked at from the raw data file (don't edit files in here - treat as read only)
+iso3cs <- readLines("analysis/data/raw/iso3cs.txt")
 
 # function to download and read the files
 read_rds <- function(x){
@@ -15,6 +15,7 @@ read_rds <- function(x){
 
 }
 
+# Helper functions for summarising the files
 res <- vector("list", length = length(iso3cs))
 mn <- function(x){mean(x, na.rm = TRUE)}
 lq <- function(x){quantile(x, 0.025, na.rm = TRUE)}
@@ -46,7 +47,7 @@ for(i in seq_along(iso3cs)) {
 
 }
 
-# group all the results
+# group all the results and save to the derived data folder (i.e. results we have generated from our R scripts)
 res_all <- do.call(rbind, res)
 saveRDS(res_all, "analysis/data/derived/averted_dch.rds")
 
