@@ -35,7 +35,8 @@ The structure within analysis is as follows:
 ```
 analysis/
     |
-    ├── xxxxx /             # analysis scripts used for generating figures
+    ├── 00_xxx /             # analysis scripts used for generating figures
+    ├── 01_xxx /             # scripts are numbered by order to run these in
     |
     ├── plots/              # location of figures produced by the analysis scripts
     |

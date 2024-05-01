@@ -7,7 +7,7 @@ library(tidyverse)
 # https://annakrystalli.me/rrresearchACCE20/creating-a-research-compendium-with-rrtools.html)
 devtools::load_all()
 
-# read in our averted data
+# read in our averted data that we create in the first script
 res_all <- readRDS("analysis/data/derived/averted_dch.rds")
 
 
@@ -74,7 +74,7 @@ res_full <- left_join(res_full,
 # calculate a value for VSL based on gni * 130. Middle estimate sourced from
 # from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9889258/
 
-# Hailie - instead if you have sourced values of VSL for each country then
+# Hallie - instead if you have sourced values of VSL for each country then
 # read this in here and use those. The following is just included here to help
 # provide code to show you how to easily filter and group and create correct
 # uncertainty intervals etc.
