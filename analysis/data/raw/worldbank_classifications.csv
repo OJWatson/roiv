@@ -1,0 +1,270 @@
+﻿Economy,iso3c,region,income_group,Lending category
+Aruba,ABW,latin_america_caribbean,H,
+Afghanistan,AFG,south_asia,L,IDA
+Angola,AGO,sub_saharan_africa,LM,IBRD
+Albania,ALB,europe_central_asia,UM,IBRD
+Andorra,AND,europe_central_asia,H,
+United Arab Emirates,ARE,middle_east_north_africa,H,
+Argentina,ARG,latin_america_caribbean,UM,IBRD
+Armenia,ARM,europe_central_asia,UM,IBRD
+American Samoa,ASM,east_asia_pacific,H,
+Antigua and Barbuda,ATG,latin_america_caribbean,H,IBRD
+Australia,AUS,east_asia_pacific,H,
+Austria,AUT,europe_central_asia,H,
+Azerbaijan,AZE,europe_central_asia,UM,IBRD
+Burundi,BDI,sub_saharan_africa,L,IDA
+Belgium,BEL,europe_central_asia,H,
+Benin,BEN,sub_saharan_africa,LM,IDA
+Burkina Faso,BFA,sub_saharan_africa,L,IDA
+Bangladesh,BGD,south_asia,LM,IDA
+Bulgaria,BGR,europe_central_asia,UM,IBRD
+Bahrain,BHR,middle_east_north_africa,H,
+"Bahamas, The",BHS,latin_america_caribbean,H,
+Bosnia and Herzegovina,BIH,europe_central_asia,UM,IBRD
+Belarus,BLR,europe_central_asia,UM,IBRD
+Belize,BLZ,latin_america_caribbean,UM,IBRD
+Bermuda,BMU,north_america,H,
+Bolivia,BOL,latin_america_caribbean,LM,IBRD
+Brazil,BRA,latin_america_caribbean,UM,IBRD
+Barbados,BRB,latin_america_caribbean,H,
+Brunei Darussalam,BRN,east_asia_pacific,H,
+Bhutan,BTN,south_asia,LM,IDA
+Botswana,BWA,sub_saharan_africa,UM,IBRD
+Central African Republic,CAF,sub_saharan_africa,L,IDA
+Canada,CAN,north_america,H,
+Switzerland,CHE,europe_central_asia,H,
+Channel Islands,CHI,europe_central_asia,H,
+Chile,CHL,latin_america_caribbean,H,IBRD
+China,CHN,east_asia_pacific,UM,IBRD
+Côte d’Ivoire,CIV,sub_saharan_africa,LM,IDA
+Cameroon,CMR,sub_saharan_africa,LM,Blend
+"Congo, Dem. Rep.",COD,sub_saharan_africa,L,IDA
+"Congo, Rep.",COG,sub_saharan_africa,LM,Blend
+Colombia,COL,latin_america_caribbean,UM,IBRD
+Comoros,COM,sub_saharan_africa,LM,IDA
+Cabo Verde,CPV,sub_saharan_africa,LM,Blend
+Costa Rica,CRI,latin_america_caribbean,UM,IBRD
+Cuba,CUB,latin_america_caribbean,UM,
+Curaçao,CUW,latin_america_caribbean,H,
+Cayman Islands,CYM,latin_america_caribbean,H,
+Cyprus,CYP,europe_central_asia,H,
+Czechia,CZE,europe_central_asia,H,
+Germany,DEU,europe_central_asia,H,
+Djibouti,DJI,middle_east_north_africa,LM,IDA
+Dominica,DMA,latin_america_caribbean,UM,Blend
+Denmark,DNK,europe_central_asia,H,
+Dominican Republic,DOM,latin_america_caribbean,UM,IBRD
+Algeria,DZA,middle_east_north_africa,LM,IBRD
+Ecuador,ECU,latin_america_caribbean,UM,IBRD
+"Egypt, Arab Rep.",EGY,middle_east_north_africa,LM,IBRD
+Eritrea,ERI,sub_saharan_africa,L,IDA
+Spain,ESP,europe_central_asia,H,
+Estonia,EST,europe_central_asia,H,
+Ethiopia,ETH,sub_saharan_africa,L,IDA
+Finland,FIN,europe_central_asia,H,
+Fiji,FJI,east_asia_pacific,UM,Blend
+France,FRA,europe_central_asia,H,
+Faroe Islands,FRO,europe_central_asia,H,
+"Micronesia, Fed. Sts.",FSM,east_asia_pacific,LM,IDA
+Gabon,GAB,sub_saharan_africa,UM,IBRD
+United Kingdom,GBR,europe_central_asia,H,
+Georgia,GEO,europe_central_asia,UM,IBRD
+Ghana,GHA,sub_saharan_africa,LM,IDA
+Gibraltar,GIB,europe_central_asia,H,
+Guinea,GIN,sub_saharan_africa,LM,IDA
+"Gambia, The",GMB,sub_saharan_africa,L,IDA
+Guinea-Bissau,GNB,sub_saharan_africa,L,IDA
+Equatorial Guinea,GNQ,sub_saharan_africa,UM,IBRD
+Greece,GRC,europe_central_asia,H,
+Grenada,GRD,latin_america_caribbean,UM,Blend
+Greenland,GRL,europe_central_asia,H,
+Guatemala,GTM,latin_america_caribbean,UM,IBRD
+Guam,GUM,east_asia_pacific,H,
+Guyana,GUY,latin_america_caribbean,H,IDA
+"Hong Kong SAR, China",HKG,east_asia_pacific,H,
+Honduras,HND,latin_america_caribbean,LM,IDA
+Croatia,HRV,europe_central_asia,H,IBRD
+Haiti,HTI,latin_america_caribbean,LM,IDA
+Hungary,HUN,europe_central_asia,H,
+Indonesia,IDN,east_asia_pacific,UM,IBRD
+Isle of Man,IMN,europe_central_asia,H,
+India,IND,south_asia,LM,IBRD
+Ireland,IRL,europe_central_asia,H,
+"Iran, Islamic Rep.",IRN,middle_east_north_africa,LM,IBRD
+Iraq,IRQ,middle_east_north_africa,UM,IBRD
+Iceland,ISL,europe_central_asia,H,
+Israel,ISR,middle_east_north_africa,H,
+Italy,ITA,europe_central_asia,H,
+Jamaica,JAM,latin_america_caribbean,UM,IBRD
+Jordan,JOR,middle_east_north_africa,LM,IBRD
+Japan,JPN,east_asia_pacific,H,
+Kazakhstan,KAZ,europe_central_asia,UM,IBRD
+Kenya,KEN,sub_saharan_africa,LM,Blend
+Kyrgyz Republic,KGZ,europe_central_asia,LM,IDA
+Cambodia,KHM,east_asia_pacific,LM,IDA
+Kiribati,KIR,east_asia_pacific,LM,IDA
+St. Kitts and Nevis,KNA,latin_america_caribbean,H,IBRD
+"Korea, Rep.",KOR,east_asia_pacific,H,
+Kuwait,KWT,middle_east_north_africa,H,
+Lao PDR,LAO,east_asia_pacific,LM,IDA
+Lebanon,LBN,middle_east_north_africa,LM,IBRD
+Liberia,LBR,sub_saharan_africa,L,IDA
+Libya,LBY,middle_east_north_africa,UM,IBRD
+St. Lucia,LCA,latin_america_caribbean,UM,Blend
+Liechtenstein,LIE,europe_central_asia,H,
+Sri Lanka,LKA,south_asia,LM,IDA
+Lesotho,LSO,sub_saharan_africa,LM,IDA
+Lithuania,LTU,europe_central_asia,H,
+Luxembourg,LUX,europe_central_asia,H,
+Latvia,LVA,europe_central_asia,H,
+"Macao SAR, China",MAC,east_asia_pacific,H,
+St. Martin (French part),MAF,latin_america_caribbean,H,
+Morocco,MAR,middle_east_north_africa,LM,IBRD
+Monaco,MCO,europe_central_asia,H,
+Moldova,MDA,europe_central_asia,UM,IBRD
+Madagascar,MDG,sub_saharan_africa,L,IDA
+Maldives,MDV,south_asia,UM,IDA
+Mexico,MEX,latin_america_caribbean,UM,IBRD
+Marshall Islands,MHL,east_asia_pacific,UM,IDA
+North Macedonia,MKD,europe_central_asia,UM,IBRD
+Mali,MLI,sub_saharan_africa,L,IDA
+Malta,MLT,middle_east_north_africa,H,
+Myanmar,MMR,east_asia_pacific,LM,IDA
+Montenegro,MNE,europe_central_asia,UM,IBRD
+Mongolia,MNG,east_asia_pacific,LM,IBRD
+Northern Mariana Islands,MNP,east_asia_pacific,H,
+Mozambique,MOZ,sub_saharan_africa,L,IDA
+Mauritania,MRT,sub_saharan_africa,LM,IDA
+Mauritius,MUS,sub_saharan_africa,UM,IBRD
+Malawi,MWI,sub_saharan_africa,L,IDA
+Malaysia,MYS,east_asia_pacific,UM,IBRD
+Namibia,NAM,sub_saharan_africa,UM,IBRD
+New Caledonia,NCL,east_asia_pacific,H,
+Niger,NER,sub_saharan_africa,L,IDA
+Nigeria,NGA,sub_saharan_africa,LM,Blend
+Nicaragua,NIC,latin_america_caribbean,LM,IDA
+Netherlands,NLD,europe_central_asia,H,
+Norway,NOR,europe_central_asia,H,
+Nepal,NPL,south_asia,LM,IDA
+Nauru,NRU,east_asia_pacific,H,IBRD
+New Zealand,NZL,east_asia_pacific,H,
+Oman,OMN,middle_east_north_africa,H,
+Pakistan,PAK,south_asia,LM,Blend
+Panama,PAN,latin_america_caribbean,H,IBRD
+Peru,PER,latin_america_caribbean,UM,IBRD
+Philippines,PHL,east_asia_pacific,LM,IBRD
+Palau,PLW,east_asia_pacific,UM,IBRD
+Papua New Guinea,PNG,east_asia_pacific,LM,Blend
+Poland,POL,europe_central_asia,H,IBRD
+Puerto Rico,PRI,latin_america_caribbean,H,
+"Korea, Dem. People's Rep.",PRK,east_asia_pacific,L,
+Portugal,PRT,europe_central_asia,H,
+Paraguay,PRY,latin_america_caribbean,UM,IBRD
+West Bank and Gaza,PSE,middle_east_north_africa,UM,
+French Polynesia,PYF,east_asia_pacific,H,
+Qatar,QAT,middle_east_north_africa,H,
+Romania,ROU,europe_central_asia,H,IBRD
+Russian Federation,RUS,europe_central_asia,UM,IBRD
+Rwanda,RWA,sub_saharan_africa,L,IDA
+Saudi Arabia,SAU,middle_east_north_africa,H,
+Sudan,SDN,sub_saharan_africa,L,IDA
+Senegal,SEN,sub_saharan_africa,LM,IDA
+Singapore,SGP,east_asia_pacific,H,
+Solomon Islands,SLB,east_asia_pacific,LM,IDA
+Sierra Leone,SLE,sub_saharan_africa,L,IDA
+El Salvador,SLV,latin_america_caribbean,UM,IBRD
+San Marino,SMR,europe_central_asia,H,
+Somalia,SOM,sub_saharan_africa,L,IDA
+Serbia,SRB,europe_central_asia,UM,IBRD
+South Sudan,SSD,sub_saharan_africa,L,IDA
+São Tomé and Príncipe,STP,sub_saharan_africa,LM,IDA
+Suriname,SUR,latin_america_caribbean,UM,IBRD
+Slovak Republic,SVK,europe_central_asia,H,
+Slovenia,SVN,europe_central_asia,H,
+Sweden,SWE,europe_central_asia,H,
+Eswatini,SWZ,sub_saharan_africa,LM,IBRD
+Sint Maarten (Dutch part),SXM,latin_america_caribbean,H,
+Seychelles,SYC,sub_saharan_africa,H,IBRD
+Syrian Arab Republic,SYR,middle_east_north_africa,L,IDA
+Turks and Caicos Islands,TCA,latin_america_caribbean,H,
+Chad,TCD,sub_saharan_africa,L,IDA
+Togo,TGO,sub_saharan_africa,L,IDA
+Thailand,THA,east_asia_pacific,UM,IBRD
+Tajikistan,TJK,europe_central_asia,LM,IDA
+Turkmenistan,TKM,europe_central_asia,UM,IBRD
+Timor-Leste,TLS,east_asia_pacific,LM,Blend
+Tonga,TON,east_asia_pacific,UM,IDA
+Trinidad and Tobago,TTO,latin_america_caribbean,H,IBRD
+Tunisia,TUN,middle_east_north_africa,LM,IBRD
+Türkiye,TUR,europe_central_asia,UM,IBRD
+Tuvalu,TUV,east_asia_pacific,UM,IDA
+"Taiwan, China",TWN,east_asia_pacific,H,
+Tanzania,TZA,sub_saharan_africa,LM,IDA
+Uganda,UGA,sub_saharan_africa,L,IDA
+Ukraine,UKR,europe_central_asia,LM,IBRD
+Uruguay,URY,latin_america_caribbean,H,IBRD
+United States,USA,north_america,H,
+Uzbekistan,UZB,europe_central_asia,LM,Blend
+St. Vincent and the Grenadines,VCT,latin_america_caribbean,UM,Blend
+"Venezuela, RB",VEN,latin_america_caribbean,,IBRD
+British Virgin Islands,VGB,latin_america_caribbean,H,
+Virgin Islands (U.S.),VIR,latin_america_caribbean,H,
+Vietnam,VNM,east_asia_pacific,LM,IBRD
+Vanuatu,VUT,east_asia_pacific,LM,IDA
+Samoa,WSM,east_asia_pacific,LM,IDA
+Kosovo,XKX,europe_central_asia,UM,IDA
+"Yemen, Rep.",YEM,middle_east_north_africa,L,IDA
+South Africa,ZAF,sub_saharan_africa,UM,IBRD
+Zambia,ZMB,sub_saharan_africa,LM,IDA
+Zimbabwe,ZWE,sub_saharan_africa,LM,Blend
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
