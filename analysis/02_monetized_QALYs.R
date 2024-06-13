@@ -37,6 +37,11 @@ wtp_thresholds <- economic_classification_data %>%
 
 utility_values <- read_csv("analysis/data/raw/utility_values.csv")
 
+# meta-analysis for utility data
+install.packages("meta")
+library(meta)
+help(meta)
+
 # read in infection duration and turn the days into years
 
 infection_durations <- read_csv("analysis/data/raw/infection_durations.csv")
@@ -90,14 +95,27 @@ total_QALYs_averted <- nonhospitalized_QALYs %>%
 # remove rows with missing values in total_averted_QALYs column
 total_QALYs_averted <- total_QALYs_averted[complete.cases(total_QALYs_averted$total_averted_QALYs),]
 
+# add helper functions for uncertainties
+lf <- function(x){quantile(x, 0.025, na.rm=TRUE)}
+mf <- function(x){quantile(x, 0.5, na.rm=TRUE)}
+hf <- function(x){quantile(x, 0.975, na.rm=TRUE)}
+
 # group by region and calculate the sum of total_averted_QALYs
 total_QALYs_averted_by_region <- total_QALYs_averted %>%
   group_by(region, replicate.x, replicate.y) %>%
-  summarise(total_averted_QALYs = sum(total_averted_QALYs))
-
-total_QALYs_averted_by_region <- total_QALYs_averted_by_region %>%
+  summarise(total_averted_QALYs = sum(total_averted_QALYs)) %>%
   group_by(region) %>%
-  summarise(total_averted_QALYs = sum(total_averted_QALYs))
+  summarise(
+    across(total_averted_QALYs,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# save into table
+total_QALYs_averted_by_region
+write.csv(total_QALYs_averted_by_region, "analysis/tables/total_QALYs_averted_by_region.csv")
 
 # basic plot of monetized QALYs by region
 total_QALYs_averted_by_region_chart <- total_QALYs_averted_by_region %>%

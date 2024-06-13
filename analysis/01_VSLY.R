@@ -60,7 +60,7 @@ income_groups <- read_csv("analysis/data/raw/worldbank_classifications.csv")
 
 # add GNIPC value for each country and income level
 
-res_full <- res_full %>%
+vsly <- res_full %>%
   left_join(gnipc_2021, by = "iso3c") %>%
   left_join(income_groups, by = "iso3c")
 
@@ -86,7 +86,7 @@ mean_vsl_usa <- vsl_usa$"mean"[1]
 
 # add column for VSL
 
-res_full <- res_full %>%
+vsly <- vsly %>%
   group_by(iso3c, replicate) %>%
   mutate(vsl = mean_vsl_usa*(GNIPC_2021/gnipc_usa)^1)
 
@@ -98,7 +98,7 @@ hf <- function(x){quantile(x, 0.975, na.rm=TRUE)}
 
 # Because vsly is just something to be calculated based on deaths we start by
 # just filtering to this:
-vsly_income_group <- res_full %>%
+vsly_income_group <- vsly %>%
   filter(name == "deaths") %>%
   # calculate the discounted number of years lost given the averted deaths
   mutate(Y = averted * lghat) %>%
@@ -118,6 +118,8 @@ vsly_income_group <- res_full %>%
              high = hf
            )))
 
+
+
 # drop rows with NA values in mean_hccosts_percentGDP
 vsly_income_group <- vsly_income_group %>% drop_na()
 
@@ -133,6 +135,8 @@ write.csv(vsly_income_group, "analysis/tables/value_of_statistical_life_years_sa
 vsly_income_group_plot <- vsly_income_group %>%
   ggplot(aes(x = income_group, y = vsly_med/1e9, fill = income_group)) +
   geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = vsly_low/1e9, ymax = vsly_high/1e9),
+                width = 0.2, position = position_dodge(0.9)) +
   scale_y_log10() +
   ylab("Value of Statistical Life Years Saved (Billion $)") +
   xlab("World Bank Income Group") +
@@ -145,11 +149,59 @@ vsly_income_group_plot
 
 # save the figure to the plots directory using the function
 # save_figs, which is a function in this roiv package (see utils-plot.R)
-save_figs(name = "value_of_statistical_life_years_saved_by_income", gg1)
+save_figs(name = "value_of_statistical_life_years_saved_by_income", vsly_income_group_plot)
+
+# do again for undiscounted
+vsly_income_group_undiscounted <- vsly %>%
+  filter(name == "deaths") %>%
+  # calculate the discounted number of years lost given the averted deaths
+  mutate(Y_undiscounted = averted * lg) %>%
+  # now the financial value based on the VLY
+  mutate(vsly_undiscounted = vsl * Y_undiscounted) %>%
+  # here we group at income and replicate, therefore summing over the age
+  group_by(income_group, replicate) %>%
+  summarise(vsly_undiscounted = sum(vsly_undiscounted, na.rm = TRUE),
+            Y_undiscounted = sum(Y_undiscounted, na.rm = TRUE)) %>%
+  # now we just group by income, so providing intervals over our replicates
+  group_by(income_group) %>%
+  summarise(
+    across(vsly_undiscounted,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# drop rows with NA values in mean_hccosts_percentGDP
+vsly_income_group_undiscounted <- vsly_income_group %>% drop_na()
+
+# set the factor levels of income_group in the desired order
+vsly_income_group_undiscounted$income_group <- factor(vsly_income_group$income_group, levels = c("H", "UM", "LM", "L"))
 
 
+# our results table which we can then save in the tables directory
+vsly_income_group_undiscounted
+write.csv(vsly_income_group_undiscounted, "analysis/tables/value_of_statistical_undiscounted_life_years_saved_by_income.csv")
 
+## Basic plot to compare these
+vsly_income_group_undiscounted_plot <- vsly_income_group_undiscounted %>%
+  ggplot(aes(x = income_group, y = vsly_med/1e9, fill = income_group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = vsly_low/1e9, ymax = vsly_high/1e9),
+                width = 0.2, position = position_dodge(0.9)) +
+  scale_y_log10() +
+  ylab("Value of Statistical Life Years Saved (Billion $)") +
+  xlab("World Bank Income Group") +
+  scale_fill_viridis_d(name = "Income") +
+  theme_bw(base_family = "Helvetica") +
+  theme(legend.position = c(0.9,0.85))
 
+# quick look at the plot
+vsly_income_group_undiscounted_plot
+
+# save the figure to the plots directory using the function
+# save_figs, which is a function in this roiv package (see utils-plot.R)
+save_figs(name = "value_of_undiscounted_statistical_life_years_saved_by_income",vsly_income_group_undiscounted_plot)
 
 
 
