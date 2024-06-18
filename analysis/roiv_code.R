@@ -127,8 +127,8 @@ lf <- function(x){quantile(x, 0.025, na.rm=TRUE)}
 mf <- function(x){quantile(x, 0.5, na.rm=TRUE)}
 hf <- function(x){quantile(x, 0.975, na.rm=TRUE)}
 
-# create new data frame with lg_total and lghat_total for each age group in each income group
-lg_lghat_country <- res_full %>%
+# create new data frame with lg_total each income group
+lg_income <- res_full %>%
   filter(name == "deaths")%>%
   # here we group at iso3c, replicate, and age group
   group_by(iso3c, replicate, age_group) %>%
@@ -141,23 +141,40 @@ lg_lghat_country <- res_full %>%
            low = lf,
            med = mf,
            high = hf
-         ))) %>%
+         )))
+
+
+# our results table which we can then save in the tables directory
+lg_income
+write.csv(lg_income, "analysis/tables/lg_income.csv")
+
+# create new data frame with lghat_total each income group
+lghat_income <- res_full %>%
+  filter(name == "deaths")%>%
+  # here we group at iso3c, replicate, and age group
+  group_by(iso3c, replicate, age_group) %>%
+  # now we just group by income, so providing intervals over our replicates
+  group_by(income_group) %>%
   mutate(lghat_total = sum(lghat_averted)) %>%
   summarise(
-  across(lghat_total,
+    across(lghat_total,
            list(
              low = lf,
              med = mf,
              high = hf
            )))
 
-# getting total hospitalisations per country
-summary_hospitalisations_country <- res_full %>%
+# our results table which we can then save in the tables directory
+lghat_income
+write.csv(lghat_income, "analysis/tables/lghat_income.csv")
+
+# getting total hospitalisations per income group
+summary_hospitalisations_income <- res_full %>%
   filter(name == "hospitalisations")%>%
   # here we group at iso3c and replicate, therefore summing over the age
   group_by(iso3c, replicate) %>%
   # now we just group by income, so providing intervals over our replicates
-  group_by(iso3c) %>%
+  group_by(income_group) %>%
   mutate(hospitalisations_total = sum(averted)) %>%
   summarise(
     across(hospitalisations_total,
@@ -168,52 +185,8 @@ summary_hospitalisations_country <- res_full %>%
            )))
 
 # our results table which we can then save in the tables directory
-summary_hospitalisations_country
-write.csv(summary_hospitalisations_country, "analysis/tables/summary_hospitalisations_country.csv")
-
-# now, lets do the same for infections averted for each income group
-
-summary_infections_by_income <- res_full %>%
-  filter(name == "infections")%>%
-  # here we group at iso3c and replicate, therefore summing over the age
-  group_by(iso3c, replicate) %>%
-  # add in income groups
-  left_join(income_groups, by = "iso3c") %>%
-  # now we just group by income, so providing intervals over our replicates
-  group_by(income_group) %>%
-  mutate(infections_total = sum(averted)) %>%
-  summarise(
-    across(infections_total,
-           list(
-             low = lf,
-             med = mf,
-             high = hf
-           )))
-
-# our results table which we can then save in the tables directory
-summary_infections_by_income
-write.csv(summary_infections_by_income, "analysis/tables/summary_infections_by_income.csv")
-
-# now, lets do the same for infections averted for each country
-
-summary_infections_country <- res_full %>%
-  filter(name == "infections")%>%
-  # here we group at iso3c and replicate, therefore summing over the age
-  group_by(iso3c, replicate) %>%
-  # now we just group by income, so providing intervals over our replicates
-  group_by(iso3c) %>%
-  mutate(infections_total = sum(averted)) %>%
-  summarise(
-    across(infections_total,
-           list(
-             low = lf,
-             med = mf,
-             high = hf
-           )))
-
-# our results table which we can then save in the tables directory
-summary_infections_country
-write.csv(summary_infections_country, "analysis/tables/summary_infections_country.csv")
+summary_hospitalisations_income
+write.csv(summary_hospitalisations_income, "analysis/tables/summary_hospitalisations_income.csv")
 
 # infections averted for each income group
 summary_infections_income_group <- res_full %>%
