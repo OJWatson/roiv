@@ -99,7 +99,8 @@ lg_age_income <- lg_age_income %>%
 
 # our results table which we can then save in the tables directory
 lg_age_income
-write.csv(lg_age_group_income, "analysis/tables/lg_age_income.csv")
+# OJ: Changed the name of file being saved as it was not the object you created aboove
+write.csv(lg_age_income, "analysis/tables/lg_age_income.csv")
 
 # re-do it so that it is just by income group
 lg_income <- res_full %>%
@@ -308,6 +309,9 @@ res_full <- res_full %>%
     read_csv("analysis/data/raw/GDP_iso3c.csv"),
     by = "iso3c"
   )
+
+# OJ: You refer to gnipc and gdp later but that does not exist
+res_full <- res_full %>% mutate(gnipc = gnipc_usa, gdp = GDP_2021)
 
 # read in USA VSL value
 vsl_usa <- read_csv("analysis/data/raw/VSL_USA_2021.csv")
@@ -539,7 +543,9 @@ write.csv(vsly_discounted, "analysis/tables/vsly_discounted.csv")
 
 res_full <- res_full %>%
   left_join(
-  read_csv("analysis/data/raw/WTP_thresholds.csv"),
+  read_csv("analysis/data/raw/WTP_thresholds.csv") %>%
+    # OJ: these were named differently to below so i had to change the names here
+    set_names(c("income_group", "wtp_median", "wtp_lower_IQR", "wtp_upper_IQR")),
   by = "income_group")
 
 # calculate wtp thresholds using the GDP percentages
@@ -549,7 +555,7 @@ res_full <- res_full %>%
   mutate(upper_wtp_threshold = wtp_upper_IQR * gdp)
 
 # read in qaly loss data
-
+# OJ: I can't run this as this file does not exist in what you pushed
 res_full <- res_full %>%
   left_join(
   read_csv("analysis/data/raw/qaly_losses.csv"),
