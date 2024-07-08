@@ -99,7 +99,7 @@ lg_age_income <- lg_age_income %>%
 
 # our results table which we can then save in the tables directory
 lg_age_income
-write.csv(lg_age_group_income, "analysis/tables/lg_age_income.csv")
+write.csv(lg_age_income, "analysis/tables/lg_age_income.csv")
 
 # re-do it so that it is just by income group
 lg_income <- res_full %>%
@@ -466,7 +466,7 @@ vsly_pgdp_plot <- vsly_pgdp_combined %>%
   ggplot(aes(x = income_group)) +
   geom_bar(aes(y = med, fill = type), stat = "identity", position = position_dodge(width = 0.6), width = 0.6) +
   geom_errorbar(aes(group = type, ymin = low, ymax = high), width = 0.4, position = position_dodge(width = 0.6)) +
-  ylab("Discounted and Undiscounted Value of Statistical Life Years Saved \n (% of GDP)") +
+  ylab("Value of Statistical Life Years Saved \n (% of GDP)") +
   xlab("World Bank Income Group") +
   scale_fill_manual(values = palette, name = "Type") +
   theme_bw(base_family = "Helvetica") +
@@ -1010,7 +1010,7 @@ monqaly_pgdp_iso3c <- res_full %>%
   )) %>%
   mutate(monqalys_pgdp = monqalys_averted/gdp) %>%
   group_by(iso3c, replicate) %>%
-  summarise(med_monqalys_pgdp = median(monqalys_pgdp, na.rm=TRUE)) %>%
+  summarise(mean_monqalys_pgdp = mean(monqalys_pgdp, na.rm=TRUE)) %>%
   group_by(iso3c) %>%
   summarise(
     across(mean_monqalys_pgdp,
@@ -1554,6 +1554,31 @@ save_figs(name = "healthcarecosts_pgdp_plot", healthcarecosts_pgdp_plot, plot_di
 # Total Costs into Vaccines
 # *************************
 
+# applying delivery costs in LMICs
+del_costs <- read_csv("analysis/data/raw/population_data.csv") %>%
+  left_join(
+    read_csv("analysis/data/raw/worldbank_classifications.csv"),
+    by = "iso3c"
+  )
+
+del_costs_lmic <- subset(del_costs, income_group %in% c("L", "LM", "UM")) %>%
+  mutate(del_costspp_2020 = 4.45)
+
+# convert to US$ 2021 and calculate the total costs
+del_costs_lmic <- del_costs_lmic %>%
+  mutate(del_costspp_2021 = del_costspp_2020 * (usa_gdp_deflator2021/usa_gdp_deflator2020)) %>%
+  # multiply costs per person by vaccine coverage percentage of population and population
+  mutate(del_costs_2021 = case_when(
+    income_group == "L" ~ pop * 0.0357 * del_costspp_2021,
+    income_group == "LM" ~ pop * 0.2980 * del_costspp_2021,
+    income_group == "UM" ~ pop * 0.510 * del_costspp_2021
+  ))
+
+
+del_cost_lmic_sum <- del_costs_lmic %>%
+  summarise(total_del_costs_lmic = sum(del_costs_2021, na.rm = TRUE))
+
+
 dev_funding <- 10011000000
 
 # ********************
@@ -1652,7 +1677,8 @@ write.csv(welfarist_sum, "analysis/tables/welfarist_sum.csv")
 
 # do ROI with median
 
-roi_welfarist <- (welfarist_sum$total_med - dev_funding)/dev_funding
+roi_welfarist <- (welfarist_sum$total_med -
+                    (dev_funding + del_cost_lmic_sum$total_del_costs_lmic))/(dev_funding + del_cost_lmic_sum$total_del_costs_lmic)
 
 # extra welfarist - VSLYs
 
@@ -1679,7 +1705,8 @@ write.csv(sum_vsly_undiscounted, "analysis/tables/sum_vsly_undiscounted.csv")
 
 # roi calculation
 
-undisc_exwelf_roi <- (sum_vsly_undiscounted$vsly_undiscounted_med - dev_funding)/dev_funding
+undisc_exwelf_roi <- (sum_vsly_undiscounted$vsly_undiscounted_med -
+                        (dev_funding + del_cost_lmic_sum$total_del_costs_lmic))/(dev_funding + del_cost_lmic_sum$total_del_costs_lmic)
 
 # do the same for discounted vsly
 
@@ -1702,7 +1729,8 @@ sum_vsly_discounted
 write.csv(sum_vsly_discounted, "analysis/tables/sum_vsly_discounted.csv")
 
 # roi calculation
-disc_exwelf_roi <- (sum_vsly_discounted$vsly_discounted_med - dev_funding)/dev_funding
+disc_exwelf_roi <- (sum_vsly_discounted$vsly_discounted_med -
+                      (dev_funding + del_cost_lmic_sum$total_del_costs_lmic))/(dev_funding + del_cost_lmic_sum$total_del_costs_lmic)
 
 
 

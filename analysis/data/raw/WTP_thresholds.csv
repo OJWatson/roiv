@@ -1,4 +1,4 @@
-﻿income_group,median,lower_IQR,upper_IQR
+﻿income_group,wtp_median,wtp_lower_IQR,wtp_upper_IQR
 H,0.68,0.5,0.88
 UM,0.58,0.44,0.76
 LM,0.35,0.23,0.48

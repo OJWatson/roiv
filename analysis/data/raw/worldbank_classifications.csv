@@ -1,4 +1,4 @@
-﻿Economy,iso3c,region,income_group,Lending category
+Economy,iso3c,region,income_group,Lending category
 Aruba,ABW,latin_america_caribbean,H,
 Afghanistan,AFG,south_asia,L,IDA
 Angola,AGO,sub_saharan_africa,LM,IBRD
@@ -206,7 +206,7 @@ Uruguay,URY,latin_america_caribbean,H,IBRD
 United States,USA,north_america,H,
 Uzbekistan,UZB,europe_central_asia,LM,Blend
 St. Vincent and the Grenadines,VCT,latin_america_caribbean,UM,Blend
-"Venezuela, RB",VEN,latin_america_caribbean,,IBRD
+"Venezuela, RB",VEN,latin_america_caribbean,UM,IBRD
 British Virgin Islands,VGB,latin_america_caribbean,H,
 Virgin Islands (U.S.),VIR,latin_america_caribbean,H,
 Vietnam,VNM,east_asia_pacific,LM,IBRD
@@ -217,54 +217,3 @@ Kosovo,XKX,europe_central_asia,UM,IDA
 South Africa,ZAF,sub_saharan_africa,UM,IBRD
 Zambia,ZMB,sub_saharan_africa,LM,IDA
 Zimbabwe,ZWE,sub_saharan_africa,LM,Blend
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
-,,,,
