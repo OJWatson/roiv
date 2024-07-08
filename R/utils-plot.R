@@ -14,7 +14,6 @@ save_figs <- function(name,
                       plot_dir = file.path(here::here(), "analysis/plots")) {
 
   print(plot_dir)
-
   dir.create(plot_dir, showWarnings = FALSE)
   fig_path <- function(name) {paste0(plot_dir, "/", name)}
 

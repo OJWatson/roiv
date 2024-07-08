@@ -234,11 +234,11 @@ sum_hosp_income_plot <- sum_hosp_income %>%
   geom_bar(stat = "identity", position = "dodge") +
   geom_errorbar(aes(ymin = hospitalisations_total_low/1e6, ymax = hospitalisations_total_high/1e6),
                 width = 0.2, position = position_dodge(0.9)) +
-  ylab("Median Hospitalisations Averted (in Millions)") +
+  ylab("Mean Hospitalisations Averted (in Millions)") +
   xlab("World Bank Income Group") +
   scale_fill_manual(values = palette, name = "Income Group") +
   theme_bw(base_family = "Helvetica") +
-  theme(legend.position = c(0.87,0.87))
+  theme(legend.position.inside = c(0.87,0.87))
 
 sum_hosp_income_plot
 
@@ -279,11 +279,11 @@ sum_inf_income_plot <- sum_inf_income %>%
   geom_bar(stat = "identity", position = "dodge") +
   geom_errorbar(aes(ymin = infections_total_low/1e6, ymax = infections_total_high/1e6),
                 width = 0.2, position = position_dodge(0.9)) +
-  ylab("Median Infections Averted (in Millions)") +
+  ylab("Mean Infections Averted (in Millions)") +
   xlab("World Bank Income Group") +
   scale_fill_manual(values = palette, name = "Income Group") +
   theme_bw(base_family = "Helvetica") +
-  theme(legend.position = c(0.87,0.87))
+  theme(legend.position.inside = c(0.87,0.87))
 
 sum_inf_income_plot
 
@@ -309,6 +309,15 @@ res_full <- res_full %>%
     by = "iso3c"
   )
 
+# extract USA GNIPC value
+gnipc_usa <- res_full %>%
+  filter(iso3c == "USA") %>%
+  pull(gnipc) %>%
+  first()
+
+# OJ: You refer to gnipc and gdp later but that does not exist
+res_full <- res_full %>% mutate(gnipc = gnipc_usa, gdp = GDP_2021)
+
 # read in USA VSL value
 vsl_usa <- read_csv("analysis/data/raw/VSL_USA_2021.csv")
   # remove rows with all NA values
@@ -320,13 +329,6 @@ vsl_usa <- read_csv("analysis/data/raw/VSL_USA_2021.csv")
 
 # extract USA VSL value (pulling value from data frame from column "mean" and row 1)
 mean_vsl_usa <- vsl_usa$"mean"[1]
-
-# extract USA GNIPC value
-gnipc_usa <- res_full %>%
-  filter(iso3c == "USA") %>%
-  pull(gnipc) %>%
-  first()
-
 
 # make a new data frame by filtering only deaths from the main data frame to calculate vslys
 vsly <- res_full %>%
@@ -539,7 +541,9 @@ write.csv(vsly_discounted, "analysis/tables/vsly_discounted.csv")
 
 res_full <- res_full %>%
   left_join(
-  read_csv("analysis/data/raw/WTP_thresholds.csv"),
+  read_csv("analysis/data/raw/WTP_thresholds.csv") %>%
+    # OJ: these were named differently to below so i had to change the names here
+    set_names(c("income_group", "wtp_median", "wtp_lower_IQR", "wtp_upper_IQR")),
   by = "income_group")
 
 # calculate wtp thresholds using the GDP percentages
@@ -549,7 +553,7 @@ res_full <- res_full %>%
   mutate(upper_wtp_threshold = wtp_upper_IQR * gdp)
 
 # read in qaly loss data
-
+# OJ: I can't run this as this file does not exist in what you pushed
 res_full <- res_full %>%
   left_join(
   read_csv("analysis/data/raw/qaly_losses.csv"),
