@@ -62,6 +62,13 @@ res_full <- res_full %>%
     by = "iso3c"
   )
 
+# change to be income groups from 2021
+devtools::install_github("mrc-ide/squire")
+devtools::install_github("mrc-ide/nimue")
+devtools::install_github("mrc-ide/squire.page")
+
+res_full$income_group <- squire.page::get_income_group(res_full$iso3c)
+
 # remove economy and lending category, and re-order columns
 res_full <- res_full %>% select(country, iso3c, income_group, region, age_group, replicate, name, baseline, novaccine, averted, lg, Ng, y, lghat)
 
@@ -92,11 +99,6 @@ lg_age_income <- res_full %>%
            high = hf
          )))
 
-# set income_group to be a factor and re-order them
-lg_age_income$income_group <- factor(lg_age_income$income_group, levels = c("H", "UM", "LM", "L"))
-lg_age_income <- lg_age_income %>%
-  arrange(income_group, age_group)
-
 # our results table which we can then save in the tables directory
 lg_age_income
 write.csv(lg_age_income, "analysis/tables/lg_age_income.csv")
@@ -118,16 +120,94 @@ lg_income <- res_full %>%
              high = hf
            )))
 
-# re-order income groups
-income_order <- c("H", "UM", "LM", "L")
-
-lg_income <- lg_income %>%
-  mutate(income_group = factor(income_group, levels = income_order)) %>%  # Convert income_group to factor with specified order
-  arrange(income_group)
 
 # our results table which we can then save in the tables directory
 lg_income
 write.csv(lg_income, "analysis/tables/lg_income.csv")
+
+# get undiscounted life years for each iso3c
+lg_iso3c <- res_full %>%
+  filter(name == "deaths") %>%
+  # here we group at iso3c, replicate
+  group_by(iso3c, replicate) %>%
+  # get the sum of life years averted
+  summarise(lg_total = sum(lg_averted, na.rm = TRUE)) %>%
+  # now we just group by income, so providing intervals over our replicates
+  group_by(iso3c) %>%
+  summarise(
+    across(lg_total,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+lg_iso3c
+write.csv(lg_iso3c, "analysis/tables/lg_iso3c.csv")
+
+# creating data frame to set up per-person vaccinated calculations
+res_full <- res_full %>%
+  left_join(read_csv("analysis/data/raw/vac_cov.csv"), by = "iso3c") %>%
+  mutate(pop_vac = Ng * vac_cov)
+
+# population-weighted mean undiscounted life years per person vaccinated in each iso3c
+lg_pp_iso3c <- res_full %>%
+  filter(name == "deaths") %>%
+  # here we group at iso3c, replicate
+  group_by(iso3c, replicate) %>%
+  mutate(lg_pp = mean((lg_averted / pop_vac))) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(lg_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+lg_pp_iso3c
+write.csv(lg_pp_iso3c, "analysis/tables/lg_pp_iso3c.csv")
+
+# re-do for income group
+lg_pp_income <- res_full %>%
+  filter(name == "deaths") %>%
+  # here we group at iso3c, replicate
+  group_by(income_group, replicate) %>%
+  mutate(lg_pp = sum((lg_averted / pop_vac) * Ng, na.rm = TRUE) / sum(Ng, na.rm = TRUE)) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(lg_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+lg_pp_income
+write.csv(lg_pp_income, "analysis/tables/lg_pp_income.csv")
+
+# get sum of undiscounted life years
+lg_sum <- res_full %>%
+  filter(name == "deaths") %>%
+  # here we group at replicate
+  group_by(replicate) %>%
+  # get the sum of life years averted
+  summarise(lg_total = sum(lg_averted, na.rm = TRUE)) %>%
+  # now we just group by income, so providing intervals over our replicates
+  summarise(
+    across(lg_total,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+lg_sum
+write.csv(lg_sum, "analysis/tables/lg_sum.csv")
 
 # create new data frame with lghat_total within each age group in each income group
 lghat_age_income <- res_full %>%
@@ -146,10 +226,6 @@ lghat_age_income <- res_full %>%
              high = hf
            )))
 
-# set income_group to be a factor and re-order them
-lghat_age_income$income_group <- factor(lghat_age_income$income_group, levels = c("H", "UM", "LM", "L"))
-lghat_age_income <- lghat_age_income %>%
-  arrange(income_group, age_group)
 
 # our results table which we can then save in the tables directory
 lghat_age_income
@@ -172,32 +248,69 @@ lghat_income <- res_full %>%
              high = hf
            )))
 
-# set income_group to be a factor and re-order them
-lghat_income$income_group <- factor(lghat_income$income_group, levels = c("H", "UM", "LM", "L"))
-lghat_income <- lghat_income %>%
-  arrange(income_group)
-
 # our results table which we can then save in the tables directory
 lghat_income
 write.csv(lghat_income, "analysis/tables/lghat_income.csv")
 
-# make a table of discounted and undiscounted life years in one both by age group and income group, and then just by income group
+# get undiscounted life years for each iso3c
+lghat_iso3c <- res_full %>%
+  filter(name == "deaths") %>%
+  # here we group at iso3c, replicate
+  group_by(iso3c, replicate) %>%
+  # get the sum of life years averted
+  summarise(lghat_total = sum(lghat_averted, na.rm = TRUE)) %>%
+  # now we just group by income, so providing intervals over our replicates
+  group_by(iso3c) %>%
+  summarise(
+    across(lghat_total,
+             list(
+               low = lf,
+               med = mf,
+               high = hf
+             )))
 
-# life years by income group and age group
-lg_lghat_age_income <- lg_age_income %>%
-  left_join(lghat_age_income)
+# our results table which we can then save in the tables directory
+lghat_iso3c
+write.csv(lghat_iso3c, "analysis/tables/lghat_iso3c.csv")
 
-  # our results table which we can then save in the tables directory
-  lg_lghat_age_income
-  write.csv(lg_lghat_age_income, "analysis/tables/lg_lghat_age_income")
+# population-weighted mean discounted life years per person vaccinated in each iso3c
+lghat_pp_iso3c <- res_full %>%
+  filter(name == "deaths") %>%
+  # here we group at iso3c, replicate
+  group_by(iso3c, replicate) %>%
+  mutate(lghat_pp = mean((lghat_averted / pop_vac))) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(lghat_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
 
-# life years by income group
-lg_lghat_income <- lg_income %>%
-  left_join(lghat_income, by = "income_group")
+# our results table which we can then save in the tables directory
+lghat_pp_iso3c
+write.csv(lghat_pp_iso3c, "analysis/tables/lghat_pp_iso3c.csv")
 
-  # our results table which we can then save in the tables directory
-  lg_lghat_income
-  write.csv(lg_lghat_income, "analysis/tables/lg_lghat_income")
+# re-do for income group
+lghat_pp_income <- res_full %>%
+  filter(name == "deaths") %>%
+  # here we group at iso3c, replicate
+  group_by(income_group, replicate) %>%
+  mutate(lghat_pp = sum((lghat_averted / pop_vac) * Ng, na.rm = TRUE) / sum(Ng, na.rm = TRUE)) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(lghat_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+lghat_pp_income
+write.csv(lghat_pp_income, "analysis/tables/lghat_pp_income.csv")
+
 
 ### HOSPITALISATIONS
 
@@ -218,14 +331,48 @@ sum_hosp_income <- res_full %>%
              high = hf
            )))
 
-# re-ordering income groups
-sum_hosp_income$income_group <- factor(sum_hosp_income$income_group, levels = c("H", "UM", "LM", "L"))
-sum_hosp_income <- sum_hosp_income %>%
-  arrange(income_group)
 
 # our results table which we can then save in the tables directory
 sum_hosp_income
 write.csv(sum_hosp_income, "analysis/tables/sum_hosp_income.csv")
+
+# population-weighted mean hospitalisations averted per person vaccinated in each iso3c
+hosp_pp_iso3c <- res_full %>%
+  filter(name == "hospitalisations") %>%
+  # here we group at iso3c, replicate
+  group_by(iso3c, replicate) %>%
+  mutate(hosp_pp = mean((averted / pop_vac))) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(hosp_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+hosp_pp_iso3c
+write.csv(hosp_pp_iso3c, "analysis/tables/hosp_pp_iso3c.csv")
+
+# re-do for income group
+hosp_pp_income <- res_full %>%
+  filter(name == "hospitalisations") %>%
+  # here we group at iso3c, replicate
+  group_by(income_group, replicate) %>%
+  mutate(hosp_pp = sum((averted / pop_vac) * Ng, na.rm = TRUE) / sum(Ng, na.rm = TRUE)) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(hosp_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+hosp_pp_income
+write.csv(hosp_pp_income, "analysis/tables/hosp_pp_income.csv")
 
 ## Basic plot to compare these
 palette <- met.brewer("Archambault")
@@ -263,12 +410,6 @@ sum_inf_income <- res_full %>%
              high = hf
            )))
 
-#re-ordering income groups
-
-sum_inf_income$income_group <- factor(sum_inf_income$income_group, levels = c("H", "UM", "LM", "L"))
-sum_inf_income <- sum_inf_income %>%
-  arrange(income_group)
-
 # our results table which we can then save in the tables directory
 sum_inf_income
 write.csv(sum_inf_income, "analysis/tables/sum_inf_income.csv")
@@ -291,6 +432,44 @@ sum_inf_income_plot
 # save_figs, which is a function in this roiv package (see utils-plot.R)
 save_figs(name = "sum_inf_income_plot",sum_inf_income_plot)
 
+# population-weighted mean hospitalisations averted per person vaccinated in each iso3c
+inf_pp_iso3c <- res_full %>%
+  filter(name == "infections") %>%
+  # here we group at iso3c, replicate
+  group_by(iso3c, replicate) %>%
+  mutate(inf_pp = mean((averted / pop_vac))) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(inf_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+inf_pp_iso3c
+write.csv(inf_pp_iso3c, "analysis/tables/inf_pp_iso3c.csv")
+
+# re-do for income group
+inf_pp_income <- res_full %>%
+  filter(name == "infections") %>%
+  # here we group at iso3c, replicate
+  group_by(income_group, replicate) %>%
+  mutate(inf_pp = sum((averted / pop_vac) * Ng, na.rm = TRUE) / sum(Ng, na.rm = TRUE)) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(inf_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+
+# our results table which we can then save in the tables directory
+inf_pp_income
+write.csv(inf_pp_income, "analysis/tables/inf_pp_income")
 
 # *****************
 # VSLY calculations
@@ -314,9 +493,6 @@ gnipc_usa <- res_full %>%
   filter(iso3c == "USA") %>%
   pull(gnipc) %>%
   first()
-
-# OJ: You refer to gnipc and gdp later but that does not exist
-res_full <- res_full %>% mutate(gnipc = gnipc_usa, gdp = GDP_2021)
 
 # read in USA VSL value
 vsl_usa <- read_csv("analysis/data/raw/VSL_USA_2021.csv")
@@ -344,17 +520,11 @@ vsly <- vsly %>%
   mutate(vsly_undiscounted = vsl * lg_averted) %>%
   mutate(vsly_discounted = vsl * lghat_averted)
 
-# get vslys in terms of percent GDP
-vsly_pdgp <- vsly %>%
-  mutate(vsly_pgdp_undiscounted = (vsly_undiscounted/gdp)*100) %>%
-  mutate(vsly_pgdp_discounted = (vsly_discounted/gdp)*100)
+# group by income group to get undiscounted VSLYs per income group in terms of mean percentage of GDP (weighted by population)
 
-# group by income group to get undiscounted VSLYs per income group in terms of mean percentage of GDP
-
-vsly_income_undiscounted_pgdp <- vsly_pdgp %>%
+vsly_income_undiscounted_pgdp <- vsly %>%
   group_by(income_group, replicate) %>%
-  mutate(vsly_pgdp_undiscounted = mean(vsly_pgdp_undiscounted, na.rm = TRUE)) %>%
-  # now we just group by income, so providing intervals over our replicates
+  mutate(vsly_pgdp_undiscounted = sum((vsly_undiscounted / gdp) * Ng * 100, na.rm = TRUE) / sum(Ng, na.rm = TRUE)) %>%
   group_by(income_group) %>%
   summarise(
     across(vsly_pgdp_undiscounted,
@@ -363,14 +533,6 @@ vsly_income_undiscounted_pgdp <- vsly_pdgp %>%
              med = mf,
              high = hf
            )))
-
-# drop rows with NA values in mean_hccosts_percentGDP
-vsly_income_undiscounted_pgdp <- vsly_income_undiscounted_pgdp %>% drop_na()
-
-# set the factor levels of income_group in the desired order
-vsly_income_undiscounted_pgdp$income_group <- factor(vsly_income_undiscounted_pgdp$income_group, levels = c("H", "UM", "LM", "L"))
-vsly_income_undiscounted_pgdp <- vsly_income_undiscounted_pgdp %>%
-  arrange(income_group)
 
 # our results table which we can then save in the tables directory
 vsly_income_undiscounted_pgdp
@@ -397,10 +559,9 @@ vsly_income_undiscounted_pgdp_plot
 save_figs(name = "vvsly_income_undiscounted_pgdp_plot",vsly_income_undiscounted_pgdp_plot)
 
 # group by income group to get discounted VSLYs per income group in terms of mean percentage of GDP
-vsly_income_discounted_pgdp <- vsly_pdgp %>%
+vsly_income_discounted_pgdp <- vsly %>%
   group_by(income_group, replicate) %>%
-  mutate(vsly_pgdp_discounted = mean(vsly_pgdp_discounted, na.rm = TRUE)) %>%
-  # now we just group by income, so providing intervals over our replicates
+  mutate(vsly_pgdp_discounted = sum((vsly_discounted / gdp) * Ng * 100, na.rm = TRUE) / sum(Ng, na.rm = TRUE)) %>%
   group_by(income_group) %>%
   summarise(
     across(vsly_pgdp_discounted,
@@ -410,17 +571,11 @@ vsly_income_discounted_pgdp <- vsly_pdgp %>%
              high = hf
            )))
 
-# drop rows with NA values in mean_hccosts_percentGDP
-vsly_income_discounted_pgdp <- vsly_income_discounted_pgdp %>% drop_na()
-
-# set the factor levels of income_group in the desired order
-vsly_income_discounted_pgdp$income_group <- factor(vsly_income_discounted_pgdp$income_group, levels = c("H", "UM", "LM", "L"))
-vsly_income_discounted_pgdp <- vsly_income_discounted_pgdp %>%
-  arrange(income_group)
 
 # our results table which we can then save in the tables directory
 vsly_income_discounted_pgdp
 write.csv(vsly_income_discounted_pgdp, "analysis/tables/vsly_income_discounted_pgdp.csv")
+
 
 ## Basic plot to compare these
 vsly_income_discounted_pgdp_plot <- vsly_income_discounted_pgdp %>%
@@ -459,11 +614,6 @@ vsly_undiscounted_pgdp <- vsly_income_undiscounted_pgdp %>%
 # combine the data frames and reshape it
 vsly_pgdp_combined <- bind_rows(vsly_discounted_pgdp, vsly_undiscounted_pgdp)
 
-# set the factor levels of income_group in the desired order
-vsly_pgdp_combined$income_group <- factor(vsly_pgdp_combined$income_group, levels = c("H", "UM", "LM", "L"))
-vsly_pgdp_combined <- vsly_pgdp_combined %>%
-  arrange(income_group)
-
 vsly_pgdp_plot <- vsly_pgdp_combined %>%
   ggplot(aes(x = income_group)) +
   geom_bar(aes(y = med, fill = type), stat = "identity", position = position_dodge(width = 0.6), width = 0.6) +
@@ -494,14 +644,6 @@ vsly_undiscounted <- vsly %>%
              high = hf
            )))
 
-vsly_undiscounted <- vsly_undiscounted %>%
-  drop_na()
-
-# set the factor levels of income_group in the desired order
-vsly_undiscounted$income_group <- factor(vsly_undiscounted$income_group, levels = c("H", "UM", "LM", "L"))
-vsly_undiscounted <- vsly_undiscounted %>%
-  arrange(income_group)
-
 # our results table which we can then save in the tables directory
 vsly_undiscounted
 write.csv(vsly_undiscounted, "analysis/tables/vsly_undiscounted.csv")
@@ -520,14 +662,6 @@ vsly_discounted <- vsly %>%
              high = hf
            )))
 
-vsly_discounted <- vsly_discounted %>%
-  drop_na()
-
-# set the factor levels of income_group in the desired order
-vsly_discounted$income_group <- factor(vsly_discounted$income_group, levels = c("H", "UM", "LM", "L"))
-vsly_discounted <- vsly_discounted %>%
-  arrange(income_group)
-
 # our results table which we can then save in the tables directory
 vsly_discounted
 write.csv(vsly_discounted, "analysis/tables/vsly_discounted.csv")
@@ -537,23 +671,27 @@ write.csv(vsly_discounted, "analysis/tables/vsly_discounted.csv")
 # Monetized QALYs
 # ****************
 
+# add in gdp per capita (gdppc) data
+res_full <- res_full %>%
+  left_join(
+    read_csv("analysis/data/raw/gdppc_2021.csv"),
+    by = "iso3c")
+
 # add percentages of GDP for WTP thresholds to res_full
 
 res_full <- res_full %>%
   left_join(
   read_csv("analysis/data/raw/WTP_thresholds.csv") %>%
-    # OJ: these were named differently to below so i had to change the names here
     set_names(c("income_group", "wtp_median", "wtp_lower_IQR", "wtp_upper_IQR")),
   by = "income_group")
 
 # calculate wtp thresholds using the GDP percentages
 res_full <- res_full %>%
-  mutate(median_wtp_threshold = wtp_median * gdp) %>%
-  mutate(lower_wtp_threshold = wtp_lower_IQR * gdp) %>%
-  mutate(upper_wtp_threshold = wtp_upper_IQR * gdp)
+  mutate(median_wtp_threshold = wtp_median * gdppc) %>%
+  mutate(lower_wtp_threshold = wtp_lower_IQR * gdppc) %>%
+  mutate(upper_wtp_threshold = wtp_upper_IQR * gdppc)
 
 # read in qaly loss data
-# OJ: I can't run this as this file does not exist in what you pushed
 res_full <- res_full %>%
   left_join(
   read_csv("analysis/data/raw/qaly_losses.csv"),
@@ -585,13 +723,12 @@ inf_qaly_iso3c
 write.csv(inf_qaly_iso3c, "analysis/tables/inf_qaly_iso3c.csv")
 
 # calculating monetized QALYs averted for infections for each iso3c
-
 inf_monqaly_iso3c <- res_full %>%
   filter(name == "infections") %>%
   group_by(iso3c, replicate) %>%
   mutate(averted_inf_qalys = averted * infections_duration
          * -(qaly_loss/365.25)) %>%
-  mutate(averted_inf_monqalys = averted_inf_qalys * median_wtp_threshold)%>%
+  mutate(averted_inf_monqalys = (averted_inf_qalys * median_wtp_threshold)) %>%
   group_by(iso3c) %>%
   summarise(
     across(averted_inf_monqalys,
@@ -621,17 +758,11 @@ inf_qaly_income <- res_full %>%
              high = hf
            )))
 
-# set the factor levels of income_group in the desired order
-inf_qaly_income$income_group <- factor(inf_qaly_income$income_group, levels = c("H", "UM", "LM", "L"))
-inf_qaly_income <- inf_qaly_income %>%
-  arrange(income_group)
-
 # our results table which we can then save in the tables directory
 inf_qaly_income
 write.csv(inf_qaly_income, "analysis/tables/inf_qaly_income.csv")
 
 # calculating monetized QALYs averted for infections for each income group
-
 inf_monqaly_income <- res_full %>%
   filter(name == "infections") %>%
   group_by(income_group, replicate) %>%
@@ -647,17 +778,12 @@ inf_monqaly_income <- res_full %>%
              high = hf
            )))
 
-# set the factor levels of income_group in the desired order
-inf_monqaly_income$income_group <- factor(inf_monqaly_income$income_group, levels = c("H", "UM", "LM", "L"))
-inf_monqaly_income <- inf_monqaly_income %>%
-  arrange(income_group)
 
 # our results table which we can then save in the tables directory
 inf_monqaly_income
 write.csv(inf_monqaly_income, "analysis/tables/inf_monqaly_income.csv")
 
 # caclulating number of QALYs averted for hospitalisations for each iso3c
-
 hosp_qaly_iso3c <- res_full %>%
   filter(name == "infections") %>%
   group_by(iso3c, replicate) %>%
@@ -677,7 +803,6 @@ hosp_qaly_iso3c
 write.csv(hosp_qaly_iso3c, "analysis/tables/hosp_qaly_iso3c")
 
 # calculating monetized QALYs averted for hospitalisations for each iso3c
-
 hosp_monqaly_iso3c <- res_full %>%
   filter(name == "infections") %>%
   group_by(iso3c, replicate) %>%
@@ -695,10 +820,9 @@ hosp_monqaly_iso3c <- res_full %>%
 
 # our results table which we can then save in the tables directory
 hosp_monqaly_iso3c
-write.csv(hosp_monqaly_iso3c, "analysis/tables/hosp_monqaly_iso3c")
+write.csv(hosp_monqaly_iso3c, "analysis/tables/hosp_monqaly_iso3c.csv")
 
 # caclulating number of QALYs averted for hospitalisations for each income group
-
 hosp_qaly_income <- res_full %>%
   filter(name == "infections") %>%
   group_by(income_group, replicate) %>%
@@ -713,17 +837,11 @@ hosp_qaly_income <- res_full %>%
              high = hf
            )))
 
-# set the factor levels of income_group in the desired order
-hosp_qaly_income$income_group <- factor(hosp_qaly_income$income_group, levels = c("H", "UM", "LM", "L"))
-hosp_qaly_income <- hosp_qaly_income %>%
-  arrange(income_group)
-
 # our results table which we can then save in the tables directory
 hosp_qaly_income
-write.csv(hosp_qaly_income, "analysis/tables/hosp_qaly_income")
+write.csv(hosp_qaly_income, "analysis/tables/hosp_qaly_income.csv")
 
 # calculating monetized QALYs averted for hospitalisations for each income group
-
 hosp_monqaly_income <- res_full %>%
   filter(name == "infections") %>%
   group_by(income_group, replicate) %>%
@@ -739,24 +857,19 @@ hosp_monqaly_income <- res_full %>%
              high = hf
            )))
 
-# set the factor levels of income_group in the desired order
-hosp_monqaly_income$income_group <- factor(hosp_monqaly_income$income_group, levels = c("H", "UM", "LM", "L"))
-hosp_monqaly_income <- hosp_monqaly_income %>%
-  arrange(income_group)
-
 # our results table which we can then save in the tables directory
 hosp_monqaly_income
-write.csv(hosp_monqaly_income, "analysis/tables/hosp_monqaly_income")
+write.csv(hosp_monqaly_income, "analysis/tables/hosp_monqaly_income.csv")
 
+# undiscounted death qalys
 # calculating number of QALYs averted for deaths for each iso3c
-
-deaths_qaly_iso3c <- res_full %>%
+deaths_undiscqaly_iso3c <- res_full %>%
   filter(name == "deaths") %>%
   group_by(iso3c, replicate) %>%
-  mutate(averted_deaths_qalys = ((averted * -qaly_loss) + lg_averted)) %>%
+  mutate(averted_deaths_undiscqalys = ((averted * -qaly_loss) + lg_averted)) %>%
   group_by(iso3c) %>%
   summarise(
-    across(averted_deaths_qalys,
+    across(averted_deaths_undiscqalys,
            list(
              low = lf,
              med = mf,
@@ -764,19 +877,18 @@ deaths_qaly_iso3c <- res_full %>%
            )))
 
 # our results table which we can then save in the tables directory
-deaths_qaly_iso3c
-write.csv(deaths_qaly_iso3c, "analysis/tables/deaths_qaly_iso3c")
+deaths_undiscqaly_iso3c
+write.csv(deaths_undiscqaly_iso3c, "analysis/tables/deaths_undiscqaly_iso3c.csv")
 
 # calculating monetized QALYs averted for deaths for each iso3c
-
-deaths_monqaly_iso3c <- res_full %>%
+deaths_undiscmonqaly_iso3c <- res_full %>%
   filter(name == "deaths") %>%
   group_by(iso3c, replicate) %>%
-  mutate(averted_deaths_qalys = ((averted * -qaly_loss) + lg_averted)) %>%
-  mutate(averted_deaths_monqalys = (averted_deaths_qalys * median_wtp_threshold)) %>%
+  mutate(averted_deaths_undiscqalys = ((averted * -qaly_loss) + lg_averted)) %>%
+  mutate(averted_deaths_undiscmonqalys = (averted_deaths_undiscqalys * median_wtp_threshold)) %>%
   group_by(iso3c) %>%
   summarise(
-    across(averted_deaths_monqalys,
+    across(averted_deaths_undiscmonqalys,
            list(
              low = lf,
              med = mf,
@@ -784,59 +896,48 @@ deaths_monqaly_iso3c <- res_full %>%
            )))
 
 # our results table which we can then save in the tables directory
-deaths_monqaly_iso3c
-write.csv(deaths_monqaly_iso3c, "analysis/tables/deaths_monqaly_iso3c")
+deaths_undiscmonqaly_iso3c
+write.csv(deaths_undiscmonqaly_iso3c, "analysis/tables/deaths_undiscmonqaly_iso3c.csv")
 
 # calculating number of QALYs averted for deaths for each income group
-deaths_qaly_income <- res_full %>%
+deaths_undiscqaly_income <- res_full %>%
   filter(name == "deaths") %>%
   group_by(income_group, replicate) %>%
-  mutate(averted_deaths_qalys = ((averted * -qaly_loss) + lg_averted)) %>%
+  mutate(averted_deaths_undiscqalys = ((averted * -qaly_loss) + lg_averted)) %>%
   group_by(income_group) %>%
   summarise(
-    across(averted_deaths_qalys,
+    across(averted_deaths_undiscqalys,
            list(
              low = lf,
              med = mf,
              high = hf
            )))
 
-# set the factor levels of income_group in the desired order
-deaths_qaly_income$income_group <- factor(deaths_qaly_income$income_group, levels = c("H", "UM", "LM", "L"))
-deaths_qaly_income <- deaths_qaly_income %>%
-  arrange(income_group)
-
 # our results table which we can then save in the tables directory
-deaths_qaly_income
-write.csv(deaths_qaly_income, "analysis/tables/deaths_qaly_income")
+deaths_undiscqaly_income
+write.csv(deaths_undiscqaly_income, "analysis/tables/deaths_undiscqaly_income.csv")
 
-# calculating monetized QALYs averted for deaths for each income group
-
-deaths_monqaly_income <- res_full %>%
+# calculating undiscounted monetized QALYs averted for deaths for each income group
+deaths_undiscmonqaly_income <- res_full %>%
   filter(name == "deaths") %>%
   group_by(income_group, replicate) %>%
-  mutate(averted_deaths_qalys = ((averted * -qaly_loss) + lg_averted)) %>%
-  mutate(averted_deaths_monqalys = (averted_deaths_qalys * median_wtp_threshold)) %>%
+  mutate(averted_deaths_undiscqalys = ((averted * -qaly_loss) + lg_averted)) %>%
+  mutate(averted_deaths_undiscmonqalys = (averted_deaths_undiscqalys * median_wtp_threshold)) %>%
   group_by(income_group) %>%
   summarise(
-    across(averted_deaths_monqalys,
+    across(averted_deaths_undiscmonqalys,
            list(
              low = lf,
              med = mf,
              high = hf
            )))
 
-# set the factor levels of income_group in the desired order
-deaths_monqaly_income$income_group <- factor(deaths_monqaly_income$income_group, levels = c("H", "UM", "LM", "L"))
-deaths_monqaly_income <- deaths_monqaly_income %>%
-  arrange(income_group)
-
 # our results table which we can then save in the tables directory
-deaths_monqaly_income
-write.csv(deaths_monqaly_income, "analysis/tables/deaths_monqaly_income")
+deaths_undiscmonqaly_income
+write.csv(deaths_undiscmonqaly_income, "analysis/tables/deaths_undiscmonqaly_income.csv")
 
-# sum of all qalys for infections, hospitalisations, deaths
-sum_qaly_iso3c <- res_full %>%
+# sum of all undiscounted qalys for infections, hospitalisations, deaths
+sum_undiscqaly_iso3c <- res_full %>%
   mutate(qalys_averted = case_when(
     name == "infections" ~ averted * infections_duration
     * -(qaly_loss/365.25),
@@ -845,10 +946,10 @@ sum_qaly_iso3c <- res_full %>%
     name == "deaths" ~ (((averted * -qaly_loss) + lg_averted))
   )) %>%
   group_by(iso3c, replicate) %>%
-  summarise(qalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
+  summarise(undiscqalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
   group_by(iso3c) %>%
   summarise(
-    across(qalys_averted_sum,
+    across(undiscqalys_averted_sum,
            list(
              low = lf,
              med = mf,
@@ -856,12 +957,36 @@ sum_qaly_iso3c <- res_full %>%
            )))
 
 # our results table which we can then save in the tables directory
-sum_qaly_iso3c
-write.csv(sum_qaly_iso3c, "analysis/tables/sum_qaly_iso3c.csv")
+sum_undiscqaly_iso3c
+write.csv(sum_undiscqaly_iso3c, "analysis/tables/sum_undiscqaly_iso3c.csv")
 
-# sum of all monetized qalys for infections, hospitalisations, deaths
-sum_monqaly_iso3c <- res_full %>%
-  mutate(monqalys_averted = case_when(
+# get qaly's per-person vaccinated
+undiscqaly_pp_iso3c <- res_full %>%
+  mutate(undiscmonqalys_averted = case_when(
+    name == "infections" ~ averted * infections_duration
+    * -(qaly_loss/365.25),
+    name == "hospitalisations" ~ averted * hospitalisations_duration
+    * -(qaly_loss/365.25),
+    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted))
+  )) %>%
+  group_by(iso3c, replicate) %>%
+  mutate(undiscqaly_pp = mean(undiscmonqalys_averted / pop_vac)) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(undiscqaly_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+undiscqaly_pp_iso3c
+write.csv(undiscqaly_pp_iso3c, "analysis/tables/undiscqaly_pp_iso3c.csv")
+
+# sum of all monetized undiscounted qalys for infections, hospitalisations, deaths
+sum_undiscmonqaly_iso3c <- res_full %>%
+  mutate(undiscmonqalys_averted = case_when(
     name == "infections" ~ averted * infections_duration
                            * -(qaly_loss/365.25) * median_wtp_threshold,
     name == "hospitalisations" ~ averted * hospitalisations_duration
@@ -870,10 +995,10 @@ sum_monqaly_iso3c <- res_full %>%
                         * median_wtp_threshold)
   )) %>%
   group_by(iso3c, replicate) %>%
-  summarise(monqalys_averted_sum = sum(monqalys_averted, na.rm=TRUE)) %>%
+  summarise(undiscmonqalys_averted_sum = sum(undiscmonqalys_averted, na.rm=TRUE)) %>%
   group_by(iso3c) %>%
   summarise(
-    across(monqalys_averted_sum,
+    across(undiscmonqalys_averted_sum,
            list(
              low = lf,
              med = mf,
@@ -881,11 +1006,12 @@ sum_monqaly_iso3c <- res_full %>%
            )))
 
 # our results table which we can then save in the tables directory
-sum_monqaly_iso3c
-write.csv(sum_monqaly_iso3c, "analysis/tables/sum_monqaly_iso3c.csv")
+sum_undiscmonqaly_iso3c
+write.csv(sum_undiscmonqaly_iso3c, "analysis/tables/sum_undiscmonqaly_iso3c.csv")
+
 
 # sum of qalys for infections, hospitalisations, deaths per income group
-sum_qaly_income <- res_full %>%
+sum_undiscqaly_income <- res_full %>%
   mutate(qalys_averted = case_when(
     name == "infections" ~ averted * infections_duration
     * -(qaly_loss/365.25),
@@ -894,32 +1020,57 @@ sum_qaly_income <- res_full %>%
     name == "deaths" ~ (((averted * -qaly_loss) + lg_averted))
   )) %>%
   group_by(income_group, replicate) %>%
-  summarise(qalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
+  summarise(undiscqalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
   group_by(income_group) %>%
   summarise(
-    across(qalys_averted_sum,
+    across(undiscqalys_averted_sum,
            list(
              low = lf,
              med = mf,
              high = hf
            )))
 
-
-sum_qaly_income <- sum_qaly_income %>%
-  drop_na()
-
 # set the factor levels of income_group in the desired order
-sum_qaly_income$income_group <- factor(sum_qaly_income$income_group, levels = c("H", "UM", "LM", "L"))
-sum_qaly_income <- sum_qaly_income %>%
+sum_undiscqaly_income$income_group <- factor(sum_undiscqaly_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+sum_undiscqaly_income <- sum_undiscqaly_income %>%
   arrange(income_group)
 
 # our results table which we can then save in the tables directory
-sum_qaly_income
-write.csv(sum_qaly_income, "analysis/tables/sum_qaly_income.csv")
+sum_undiscqaly_income
+write.csv(sum_undiscqaly_income, "analysis/tables/sum_undiscqaly_income.csv")
+
+# get qaly's per-person vaccinated per income group
+undiscqaly_pp_income <- res_full %>%
+  mutate(undiscqaly_averted = case_when(
+    name == "infections" ~ averted * infections_duration
+    * -(qaly_loss/365.25),
+    name == "hospitalisations" ~ averted * hospitalisations_duration
+    * -(qaly_loss/365.25),
+    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted))
+  )) %>%
+  group_by(income_group, replicate) %>%
+  mutate(undiscqaly_pp = sum(undiscqaly_averted / pop_vac * Ng, na.rm = TRUE) / sum(Ng, na.rm = TRUE)) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(undiscqaly_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# set the factor levels of income_group in the desired order
+undiscqaly_pp_income$income_group <- factor(undiscqaly_pp_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+undiscqaly_pp_income <- undiscqaly_pp_income %>%
+  arrange(income_group)
+
+# our results table which we can then save in the tables directory
+undiscqaly_pp_income
+write.csv(undiscqaly_pp_income, "analysis/tables/undiscqaly_pp_income.csv")
 
 # get total monetized qalys per income group
-sum_monqaly_income <- res_full %>%
-  mutate(monqalys_averted = case_when(
+sum_undiscmonqaly_income <- res_full %>%
+  mutate(undiscmonqalys_averted = case_when(
     name == "infections" ~ averted * infections_duration
     * -(qaly_loss/365.25) * median_wtp_threshold,
     name == "hospitalisations" ~ averted * hospitalisations_duration
@@ -928,10 +1079,10 @@ sum_monqaly_income <- res_full %>%
                         * median_wtp_threshold)
   )) %>%
   group_by(income_group, replicate) %>%
-  summarise(monqalys_averted_sum = sum(monqalys_averted, na.rm=TRUE)) %>%
+  summarise(undiscmonqalys_averted_sum = sum(undiscmonqalys_averted, na.rm=TRUE)) %>%
   group_by(income_group) %>%
   summarise(
-    across(monqalys_averted_sum,
+    across(undiscmonqalys_averted_sum,
            list(
              low = lf,
              med = mf,
@@ -939,21 +1090,21 @@ sum_monqaly_income <- res_full %>%
            )))
 
 
-sum_monqaly_income <- sum_monqaly_income %>%
+sum_undiscmonqaly_income <- sum_undiscmonqaly_income %>%
   drop_na()
 
 # set the factor levels of income_group in the desired order
-sum_monqaly_income$income_group <- factor(sum_monqaly_income$income_group, levels = c("H", "UM", "LM", "L"))
-sum_monqaly_income <- sum_monqaly_income %>%
+sum_undiscmonqaly_income$income_group <- factor(sum_undiscmonqaly_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+sum_undiscmonqaly_income <- sum_undiscmonqaly_income %>%
   arrange(income_group)
 
 # our results table which we can then save in the tables directory
-sum_monqaly_income
-write.csv(sum_monqaly_income, "analysis/tables/sum_monqaly_income.csv")
+sum_undiscmonqaly_income
+write.csv(sum_undiscmonqaly_income, "analysis/tables/sum_undiscmonqaly_income.csv")
 
-# get mean monetized qalys in proportion of gdp per income group
-monqaly_pgdp_income <- res_full %>%
-  mutate(monqalys_averted = case_when(
+# get mean undiscounted monetized qalys in percentage of gdp per income group (population-weighted mean)
+undiscmonqaly_pgdp_income <- res_full %>%
+  mutate(undiscmonqalys_averted = case_when(
     name == "infections" ~ averted * infections_duration
     * -(qaly_loss/365.25) * median_wtp_threshold,
     name == "hospitalisations" ~ averted * hospitalisations_duration
@@ -961,12 +1112,11 @@ monqaly_pgdp_income <- res_full %>%
     name == "deaths" ~ (((averted * -qaly_loss) + lg_averted)
                         * median_wtp_threshold)
   )) %>%
-  mutate(monqalys_pgdp = monqalys_averted/gdp) %>%
   group_by(income_group, replicate) %>%
-  summarise(mean_monqalys_pgdp = mean(monqalys_pgdp, na.rm=TRUE)) %>%
+  summarise(mean_undiscmonqalys_pgdp = sum((undiscmonqalys_averted / gdp) * Ng * 100, na.rm=TRUE) / sum(Ng, na.rm = TRUE)) %>%
   group_by(income_group) %>%
   summarise(
-    across(mean_monqalys_pgdp,
+    across(mean_undiscmonqalys_pgdp,
            list(
              low = lf,
              med = mf,
@@ -974,37 +1124,36 @@ monqaly_pgdp_income <- res_full %>%
            )))
 
 # set the factor levels of income_group in the desired order
-monqaly_pgdp_income$income_group <- factor(monqaly_pgdp_income$income_group, levels = c("H", "UM", "LM", "L"))
-monqaly_pgdp_income <- monqaly_pgdp_income %>%
+undiscmonqaly_pgdp_income$income_group <- factor(undiscmonqaly_pgdp_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+undiscmonqaly_pgdp_income <- undiscmonqaly_pgdp_income %>%
   arrange(income_group)
 
 # our results table which we can then save in the tables directory
-monqaly_pgdp_income
-write.csv(monqaly_pgdp_income, "analysis/tables/monqaly_pgdp_income.csv")
+undiscmonqaly_pgdp_income
+write.csv(undiscmonqaly_pgdp_income, "analysis/tables/undiscmonqaly_pgdp_income.csv")
 
 ## Basic plot to compare monetized qalys as a proportion of GDP per income group
-monqaly_pgdp_income_plot <- monqaly_pgdp_income %>%
-  ggplot(aes(x = income_group, y = mean_monqalys_pgdp_med, fill = income_group)) +
+undiscmonqaly_pgdp_income_plot <- undiscmonqaly_pgdp_income %>%
+  ggplot(aes(x = income_group, y = mean_undiscmonqalys_pgdp_med, fill = income_group)) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_errorbar(aes(ymin = mean_monqalys_pgdp_low, ymax = mean_monqalys_pgdp_high),
+  geom_errorbar(aes(ymin = mean_undiscmonqalys_pgdp_low, ymax = mean_undiscmonqalys_pgdp_high),
                 width = 0.2, position = position_dodge(0.9)) +
-  ylab("Monetized QALYs Gained as a Proportion of GDP") +
+  ylab("Undiscounted Monetized QALYs Gained as a Proportion of GDP") +
   xlab("World Bank Income Group") +
   scale_fill_manual(values = palette, name = "Income Group") +
   theme_bw(base_family = "Helvetica") +
   theme(legend.position = c(0.9,0.85))
 
 # quick look at the plot
-monqaly_pgdp_income_plot
+undiscmonqaly_pgdp_income_plot
 
 # save the figure to the plots directory using the function
 # save_figs, which is a function in this roiv package (see utils-plot.R)
-save_figs(name = "monqaly_pgdp_income_plot", monqaly_pgdp_income_plot)
+save_figs(name = "undiscmonqaly_pgdp_income_plot", undiscmonqaly_pgdp_income_plot)
 
-# plot of monetized QALYs as proportion of GDP averted on map
-# get mean monetized QALYS as proportion of GDP per iso3c
-monqaly_pgdp_iso3c <- res_full %>%
-  mutate(monqalys_averted = case_when(
+# get mean monetized undiscounted QALYS as proportion of GDP per iso3c
+undiscmonqaly_pgdp_iso3c <- res_full %>%
+  mutate(undiscmonqalys_averted = case_when(
     name == "infections" ~ averted * infections_duration
     * -(qaly_loss/365.25) * median_wtp_threshold,
     name == "hospitalisations" ~ averted * hospitalisations_duration
@@ -1012,12 +1161,11 @@ monqaly_pgdp_iso3c <- res_full %>%
     name == "deaths" ~ (((averted * -qaly_loss) + lg_averted)
                         * median_wtp_threshold)
   )) %>%
-  mutate(monqalys_pgdp = monqalys_averted/gdp) %>%
   group_by(iso3c, replicate) %>%
-  summarise(mean_monqalys_pgdp = mean(monqalys_pgdp, na.rm=TRUE)) %>%
+  summarise(mean_undiscmonqalys_pgdp = mean((undiscmonqalys_averted / gdp) * 100)) %>%
   group_by(iso3c) %>%
   summarise(
-    across(mean_monqalys_pgdp,
+    across(mean_undiscmonqalys_pgdp,
            list(
              low = lf,
              med = mf,
@@ -1025,61 +1173,318 @@ monqaly_pgdp_iso3c <- res_full %>%
            )))
 
 # our results table which we can then save in the tables directory
-monqaly_pgdp_iso3c
-write.csv(monqaly_pgdp_iso3c, "analysis/tables/monqaly_pgdp_iso3c.csv")
+undiscmonqaly_pgdp_iso3c
+write.csv(undiscmonqaly_pgdp_iso3c, "analysis/tables/undiscmonqaly_pgdp_iso3c.csv")
 
-# plot the data on the map
-library(sf)
-library(rnaturalearth)
-library(rnaturalearthdata)
+# discounted death qalys
+# calculating number of QALYs averted for deaths for each iso3c
 
-# load the world map data from naturalearth
-world <- ne_countries(scale = "medium", returnclass = "sf")
+deaths_discqaly_iso3c <- res_full %>%
+  filter(name == "deaths") %>%
+  group_by(iso3c, replicate) %>%
+  mutate(averted_deaths_discqalys = ((averted * -qaly_loss) + lghat_averted)) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(averted_deaths_discqalys,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
 
-# insect world map data
-head(world)
+# our results table which we can then save in the tables directory
+deaths_discqaly_iso3c
+write.csv(deaths_discqaly_iso3c, "analysis/tables/deaths_discqaly_iso3c.csv")
 
-# rename to match the world data column
-monqaly_pgdp_iso3c <- monqaly_pgdp_iso3c %>%
-  rename(iso_a3 = iso3c)
+# calculating monetized QALYs averted for deaths for each iso3c
+deaths_discmonqaly_iso3c <- res_full %>%
+  filter(name == "deaths") %>%
+  group_by(iso3c, replicate) %>%
+  mutate(averted_deaths_discqalys = ((averted * -qaly_loss) + lghat_averted)) %>%
+  mutate(averted_deaths_discmonqalys = (averted_deaths_discqalys * median_wtp_threshold)) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(averted_deaths_discmonqalys,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
 
-# merge the data
-world <- world %>%
-  left_join(monqaly_pgdp_iso3c, by = "iso_a3")
+# our results table which we can then save in the tables directory
+deaths_discmonqaly_iso3c
+write.csv(deaths_discmonqaly_iso3c, "analysis/tables/deaths_discmonqaly_iso3c.csv")
 
-# plot the map
-monqaly_pgdp_iso3c_plot <- ggplot(data = world) +
-  geom_sf(aes(fill = mean_monqalys_pgdp_med)) +  # Ensure this column exists in your data
-  scale_fill_gradientn(colors = palette, na.value = "grey90", name = "Monetized QALYs (Proportion of GDP)") +
-  theme_minimal() +
-  theme(
-    legend.position = "right",
-    axis.text.x = element_blank(),
-    axis.text.y = element_blank(),
-    panel.grid = element_blank(),
-  ) +
-  labs(
-    title = "Monetized QALYs as a Proportion of GDP by Country",
-    fill = "Monetized QALYs (Proportion of GDP)"
-  )
+# calculating number of QALYs averted for deaths for each income group
+deaths_discqaly_income <- res_full %>%
+  filter(name == "deaths") %>%
+  group_by(income_group, replicate) %>%
+  mutate(averted_deaths_discqalys = ((averted * -qaly_loss) + lghat_averted)) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(averted_deaths_discqalys,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# set the factor levels of income_group in the desired order
+deaths_discqaly_income$income_group <- factor(deaths_discqaly_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+deaths_discqaly_income <- deaths_discqaly_income %>%
+  arrange(income_group)
+
+# our results table which we can then save in the tables directory
+deaths_discqaly_income
+write.csv(deaths_discqaly_income, "analysis/tables/deaths_discqaly_income.csv")
+
+# calculating monetized QALYs averted for deaths for each income group
+deaths_discmonqaly_income <- res_full %>%
+  filter(name == "deaths") %>%
+  group_by(income_group, replicate) %>%
+  mutate(averted_deaths_discqalys = ((averted * -qaly_loss) + lghat_averted)) %>%
+  mutate(averted_deaths_discmonqalys = (averted_deaths_discqalys * median_wtp_threshold)) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(averted_deaths_discmonqalys,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# set the factor levels of income_group in the desired order
+deaths_discmonqaly_income$income_group <- factor(deaths_discmonqaly_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+deaths_discmonqaly_income <- deaths_discmonqaly_income %>%
+  arrange(income_group)
+
+# our results table which we can then save in the tables directory
+deaths_discmonqaly_income
+write.csv(deaths_discmonqaly_income, "analysis/tables/deaths_discmonqaly_income.csv")
+
+# sum of all discounted qalys for infections, hospitalisations, deaths
+sum_discqaly_iso3c <- res_full %>%
+  mutate(qalys_averted = case_when(
+    name == "infections" ~ averted * infections_duration
+    * -(qaly_loss/365.25),
+    name == "hospitalisations" ~ averted * hospitalisations_duration
+    * -(qaly_loss/365.25),
+    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted))
+  )) %>%
+  group_by(iso3c, replicate) %>%
+  summarise(discqalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(discqalys_averted_sum,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+sum_discqaly_iso3c
+write.csv(sum_discqaly_iso3c, "analysis/tables/sum_discqaly_iso3c.csv")
+
+# get discounted qaly's per-person vaccinated per iso3c
+discqaly_pp_iso3c <- res_full %>%
+  mutate(discqaly_averted = case_when(
+    name == "infections" ~ averted * infections_duration
+    * -(qaly_loss/365.25),
+    name == "hospitalisations" ~ averted * hospitalisations_duration
+    * -(qaly_loss/365.25),
+    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted))
+  )) %>%
+  group_by(iso3c, replicate) %>%
+  mutate(discqaly_pp = mean(discqaly_averted / pop_vac)) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(discqaly_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+
+# our results table which we can then save in the tables directory
+discqaly_pp_iso3c
+write.csv(discqaly_pp_iso3c, "analysis/tables/discqaly_pp_iso3c.csv")
+
+# sum of all monetized discounted qalys for infections, hospitalisations, deaths
+sum_discmonqaly_iso3c <- res_full %>%
+  mutate(discmonqalys_averted = case_when(
+    name == "infections" ~ averted * infections_duration
+    * -(qaly_loss/365.25) * median_wtp_threshold,
+    name == "hospitalisations" ~ averted * hospitalisations_duration
+    * -(qaly_loss/365.25) * median_wtp_threshold,
+    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
+                        * median_wtp_threshold)
+  )) %>%
+  group_by(iso3c, replicate) %>%
+  summarise(discmonqalys_averted_sum = sum(discmonqalys_averted, na.rm=TRUE)) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(discmonqalys_averted_sum,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+
+# our results table which we can then save in the tables directory
+sum_discmonqaly_iso3c
+write.csv(sum_discmonqaly_iso3c, "analysis/tables/sum_discmonqaly_iso3c.csv")
+
+# sum of qalys for infections, hospitalisations, deaths per income group
+sum_discqaly_income <- res_full %>%
+  mutate(qalys_averted = case_when(
+    name == "infections" ~ averted * infections_duration
+    * -(qaly_loss/365.25),
+    name == "hospitalisations" ~ averted * hospitalisations_duration
+    * -(qaly_loss/365.25),
+    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted))
+  )) %>%
+  group_by(income_group, replicate) %>%
+  summarise(discqalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(discqalys_averted_sum,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+
+sum_discqaly_income <- sum_discqaly_income %>%
+  drop_na()
+
+# set the factor levels of income_group in the desired order
+sum_discqaly_income$income_group <- factor(sum_discqaly_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+sum_discqaly_income <- sum_discqaly_income %>%
+  arrange(income_group)
+
+# our results table which we can then save in the tables directory
+sum_discqaly_income
+write.csv(sum_discqaly_income, "analysis/tables/sum_discqaly_income.csv")
+
+# get discounted qaly's per-person vaccinated per income group
+discqaly_pp_income <- res_full %>%
+  mutate(discqaly_averted = case_when(
+    name == "infections" ~ averted * infections_duration
+    * -(qaly_loss/365.25),
+    name == "hospitalisations" ~ averted * hospitalisations_duration
+    * -(qaly_loss/365.25),
+    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted))
+  )) %>%
+  group_by(income_group, replicate) %>%
+  mutate(discqaly_pp = sum(discqaly_averted / pop_vac * Ng, na.rm = TRUE) / sum(Ng, na.rm = TRUE)) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(discqaly_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# set the factor levels of income_group in the desired order
+discqaly_pp_income$income_group <- factor(discqaly_pp_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+discqaly_pp_income <- discqaly_pp_income %>%
+  arrange(income_group)
+
+# our results table which we can then save in the tables directory
+discqaly_pp_income
+write.csv(discqaly_pp_income, "analysis/tables/discqaly_pp_income.csv")
+
+# get total monetized qalys per income group
+sum_discmonqaly_income <- res_full %>%
+  mutate(discmonqalys_averted = case_when(
+    name == "infections" ~ averted * infections_duration
+    * -(qaly_loss/365.25) * median_wtp_threshold,
+    name == "hospitalisations" ~ averted * hospitalisations_duration
+    * -(qaly_loss/365.25) * median_wtp_threshold,
+    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
+                        * median_wtp_threshold)
+  )) %>%
+  group_by(income_group, replicate) %>%
+  summarise(discmonqalys_averted_sum = sum(discmonqalys_averted, na.rm=TRUE)) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(discmonqalys_averted_sum,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+
+sum_discmonqaly_income <- sum_discmonqaly_income %>%
+  drop_na()
+
+# set the factor levels of income_group in the desired order
+sum_discmonqaly_income$income_group <- factor(sum_discmonqaly_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+sum_discmonqaly_income <- sum_discmonqaly_income %>%
+  arrange(income_group)
+
+# our results table which we can then save in the tables directory
+sum_discmonqaly_income
+write.csv(sum_discmonqaly_income, "analysis/tables/sum_discmonqaly_income.csv")
+
+# get mean monetized qalys in proportion of gdp per income group
+discmonqaly_pgdp_income <- res_full %>%
+  mutate(discmonqalys_averted = case_when(
+    name == "infections" ~ averted * infections_duration
+    * -(qaly_loss/365.25) * median_wtp_threshold,
+    name == "hospitalisations" ~ averted * hospitalisations_duration
+    * -(qaly_loss/365.25) * median_wtp_threshold,
+    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
+                        * median_wtp_threshold)
+  )) %>%
+  group_by(income_group, replicate) %>%
+  summarise(mean_discmonqalys_pgdp = sum((discmonqalys_averted / gdp) * Ng * 100, na.rm=TRUE) / sum(Ng, na.rm = TRUE)) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(mean_discmonqalys_pgdp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# set the factor levels of income_group in the desired order
+discmonqaly_pgdp_income$income_group <- factor(discmonqaly_pgdp_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+discmonqaly_pgdp_income <- discmonqaly_pgdp_income %>%
+  arrange(income_group)
+
+# our results table which we can then save in the tables directory
+discmonqaly_pgdp_income
+write.csv(discmonqaly_pgdp_income, "analysis/tables/discmonqaly_pgdp_income.csv")
+
+## Basic plot to compare monetized qalys as a proportion of GDP per income group
+discmonqaly_pgdp_income_plot <- discmonqaly_pgdp_income %>%
+  ggplot(aes(x = income_group, y = mean_discmonqalys_pgdp_med, fill = income_group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = mean_discmonqalys_pgdp_low, ymax = mean_discmonqalys_pgdp_high),
+                width = 0.2, position = position_dodge(0.9)) +
+  ylab("Discounted Monetized QALYs Gained as a Proportion of GDP") +
+  xlab("World Bank Income Group") +
+  scale_fill_manual(values = palette, name = "Income Group") +
+  theme_bw(base_family = "Helvetica") +
+  theme(legend.position = c(0.9,0.85))
 
 # quick look at the plot
-monqaly_pgdp_iso3c_plot
+discmonqaly_pgdp_income_plot
 
 # save the figure to the plots directory using the function
 # save_figs, which is a function in this roiv package (see utils-plot.R)
-save_figs(name = "monqaly_pgdp_iso3c_plot", monqaly_pgdp_iso3c_plot)
-
+save_figs(name = "discmonqaly_pgdp_income_plot", discmonqaly_pgdp_income_plot)
 
 # ********************
 # Human Capital Costs
 # ********************
-
-# add in gdp per capita (gdppc) data
-res_full <- res_full %>%
-  left_join(
-    read_csv("analysis/data/raw/gdppc_2021.csv"),
-    by = "iso3c")
 
 # calculating human capital costs
 human_capital <- res_full %>%
@@ -1102,11 +1507,8 @@ human_capital_inf <- human_capital %>%
                      high = hf
                    )))
 
-human_capital_inf <- human_capital_inf %>%
-  drop_na()
-
 # set the factor levels of income_group in the desired order
-human_capital_inf$income_group <- factor(human_capital_inf$income_group, levels = c("H", "UM", "LM", "L"))
+human_capital_inf$income_group <- factor(human_capital_inf$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
 human_capital_inf <- human_capital_inf %>%
   arrange(income_group)
 
@@ -1129,11 +1531,8 @@ human_capital_hosp <- human_capital %>%
                    )))
 
 
-human_capital_hosp <- human_capital_hosp %>%
-  drop_na()
-
 # set the factor levels of income_group in the desired order
-human_capital_hosp$income_group <- factor(human_capital_hosp$income_group, levels = c("H", "UM", "LM", "L"))
+human_capital_hosp$income_group <- factor(human_capital_hosp$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
 human_capital_hosp <- human_capital_hosp %>%
   arrange(income_group)
 
@@ -1154,11 +1553,9 @@ human_capital_sum_income <- human_capital %>%
                      high = hf
                    )))
 
-human_capital_sum_income <- human_capital_sum_income %>%
-  drop_na()
 
 # set the factor levels of income_group in the desired order
-human_capital_sum_income$income_group <- factor(human_capital_sum_income$income_group, levels = c("H", "UM", "LM", "L"))
+human_capital_sum_income$income_group <- factor(human_capital_sum_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
 human_capital_sum_income <- human_capital_sum_income %>%
   arrange(income_group)
 
@@ -1188,9 +1585,8 @@ save_figs(name = "human_capital_sum_incomeplot", human_capital_sum_incomeplot)
 
 # generating table of human capital costs averted as a percentage of gdp per income group
 human_capital_pgdp <- human_capital %>%
-  mutate(humcap_pgdp = (hc_costs/gdp)*100) %>%
   group_by(income_group, replicate) %>%
-  summarise(mean_humcap_pgdp = mean(humcap_pgdp, na.rm = TRUE)) %>%
+  summarise(mean_humcap_pgdp = sum((hc_costs / gdp) * Ng * 100, na.rm=TRUE) / sum(Ng, na.rm = TRUE)) %>%
   group_by(income_group) %>%
   summarise(across(mean_humcap_pgdp,
                    list(
@@ -1200,7 +1596,7 @@ human_capital_pgdp <- human_capital %>%
                    )))
 
 # set the factor levels of income_group in the desired order
-human_capital_pgdp$income_group <- factor(human_capital_pgdp$income_group, levels = c("H", "UM", "LM", "L"))
+human_capital_pgdp$income_group <- factor(human_capital_pgdp$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
 human_capital_pgdp <- human_capital_pgdp %>%
   arrange(income_group)
 
@@ -1227,6 +1623,66 @@ human_capital_pgdp_plot
 # save_figs, which is a function in this roiv package (see utils-plot.R)
 save_figs(name = "human_capital_pgdp_plot", human_capital_pgdp_plot)
 
+#### RE-DO FOR ISO3C
+
+# generating table just for human capital costs averted by infections
+human_capital_inf_iso3c <- human_capital %>%
+  filter(name == "infections") %>%
+  group_by(iso3c, replicate) %>%
+  summarise(hc_costs_total = sum(hc_costs, na.rm = TRUE)) %>%
+  group_by(iso3c) %>%
+  summarise(across(hc_costs_total,
+                   list(
+                     low = lf,
+                     med = mf,
+                     high = hf
+                   )))
+
+# our results table which we can then save in the tables directory
+human_capital_inf_iso3c
+write.csv(human_capital_inf_iso3c, "analysis/tables/human_capital_inf_iso3c.csv")
+
+
+# generating table just for human capital costs averted by hospitalisations
+human_capital_hosp_iso3c <- human_capital %>%
+  filter(name == "hospitalisations") %>%
+  group_by(iso3c, replicate) %>%
+  summarise(hc_costs_total = sum(hc_costs, na.rm = TRUE)) %>%
+  group_by(iso3c) %>%
+  summarise(across(hc_costs_total,
+                   list(
+                     low = lf,
+                     med = mf,
+                     high = hf
+                   )))
+
+
+# our results table which we can then save in the tables directory
+human_capital_hosp_iso3c
+write.csv(human_capital_hosp_iso3c, "analysis/tables/human_capital_hosp_iso3c.csv")
+
+
+# sum of infections and hospitalisations
+human_capital_sum_iso3c <- res_full %>%
+  filter(name %in% c("infections", "hospitalisations")) %>%
+  mutate(hc_costs = case_when(
+    name == "infections" ~ (gdppc/365.25) * infections_duration * averted,
+    name == "hospitalisations" ~ (gdppc/365.25) * hospitalisations_duration * averted
+  )) %>%
+  group_by(iso3c, replicate) %>%
+  summarise(hc_costs_total = sum(hc_costs, na.rm = TRUE)) %>%
+  group_by(iso3c) %>%
+  summarise(across(hc_costs_total,
+                   list(
+                     low = lf,
+                     med = mf,
+                     high = hf
+                   )))
+
+# our results table which we can then save in the tables directory
+human_capital_sum_iso3c
+write.csv(human_capital_sum_iso3c, "analysis/tables/human_capital_sum_iso3c.csv")
+
 
 # ***************
 # Friction Costs
@@ -1247,8 +1703,8 @@ friction_costs <- friction_costs %>%
 
 lmic_income <- (3*30.417)
 
-friction_costs$friction_period[friction_costs$income_group == "L"] <- lmic_income
-friction_costs$friction_period[friction_costs$income_group == "LM"] <- lmic_income
+friction_costs$friction_period[friction_costs$income_group == "LIC"] <- lmic_income
+friction_costs$friction_period[friction_costs$income_group == "LMIC"] <- lmic_income
 
 # assign average friction period value to European countries
 
@@ -1266,14 +1722,12 @@ friction_costs <- friction_costs %>%
   mutate(friction_period = as.numeric(friction_period)) %>%
   mutate(friction_costs = (gdppc/365.25) * friction_period * averted)
 
-friction_costs <- friction_costs %>%
-  drop_na()
 
 # sum friction costs per income group
 
 friction_costs_sum <- friction_costs %>%
   group_by(income_group, replicate) %>%
-  summarise(friction_costs_total = sum(friction_costs)) %>%
+  summarise(friction_costs_total = sum(friction_costs, na.rm = TRUE)) %>%
   group_by(income_group) %>%
   summarise(across(friction_costs_total,
                    list(
@@ -1283,15 +1737,13 @@ friction_costs_sum <- friction_costs %>%
                    )))
 
 # set the factor levels of income_group in the desired order
-friction_costs_sum$income_group <- factor(friction_costs_sum$income_group, levels = c("H", "UM", "LM", "L"))
+friction_costs_sum$income_group <- factor(friction_costs_sum$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
 friction_costs_sum <- friction_costs_sum %>%
   arrange(income_group)
-
 
 # our results table which we can then save in the tables directory
 friction_costs_sum
 write.csv(friction_costs_sum, "analysis/tables/friction_costs_sum.csv")
-
 
 ## Basic plot to compare human capital costs between income group
 friction_costs_plot <- friction_costs_sum %>%
@@ -1315,9 +1767,8 @@ save_figs(name = "friction_costs_plot", friction_costs_plot)
 # sum friction costs per income group as percentage of gdp
 
 friction_costs_pgdp <- friction_costs %>%
-  mutate(friction_costs_pgdp = (friction_costs/gdp)*100) %>%
   group_by(income_group, replicate) %>%
-  summarise(mean_friction_costs_pgdp = mean(friction_costs_pgdp)) %>%
+  summarise(mean_friction_costs_pgdp = sum((friction_costs / gdp) * Ng * 100, na.rm=TRUE) / sum(Ng, na.rm = TRUE)) %>%
   group_by(income_group) %>%
   summarise(across(mean_friction_costs_pgdp,
                    list(
@@ -1327,7 +1778,7 @@ friction_costs_pgdp <- friction_costs %>%
                    )))
 
 # set the factor levels of income_group in the desired order
-friction_costs_pgdp$income_group <- factor(friction_costs_pgdp$income_group, levels = c("H", "UM", "LM", "L"))
+friction_costs_pgdp$income_group <- factor(friction_costs_pgdp$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
 friction_costs_pgdp <- friction_costs_pgdp %>%
   arrange(income_group)
 
@@ -1337,7 +1788,7 @@ friction_costs_pgdp
 write.csv(friction_costs_pgdp, "analysis/tables/friction_costs_pgdp.csv")
 
 
-## Basic plot to compare human capital costs between income group as percentage of gdp
+## Basic plot to compare friction costs between income group as percentage of gdp
 friction_costs_pgdp_plot <- friction_costs_pgdp %>%
   ggplot(aes(x = income_group, y = mean_friction_costs_pgdp_med, fill = income_group)) +
   geom_bar(stat = "identity", position = "dodge") +
@@ -1356,6 +1807,41 @@ friction_costs_pgdp_plot
 # save_figs, which is a function in this roiv package (see utils-plot.R)
 save_figs(name = "friction_costs_pgdp_plot", friction_costs_pgdp_plot)
 
+
+# calculating friction costs for each iso3c
+friction_costs_sum_iso3c <- friction_costs %>%
+  group_by(iso3c, replicate) %>%
+  summarise(friction_costs_total = sum(friction_costs, na.rm = TRUE)) %>%
+  group_by(iso3c) %>%
+  summarise(across(friction_costs_total,
+                   list(
+                     low = lf,
+                     med = mf,
+                     high = hf
+                   )))
+
+# our results table which we can then save in the tables directory
+friction_costs_sum_iso3c
+write.csv(friction_costs_sum_iso3c, "analysis/tables/friction_costs_sum_iso3c.csv")
+
+
+# sum friction costs per iso3c as percentage of gdp
+friction_costs_pgdp_iso3c <- friction_costs %>%
+  group_by(iso3c, replicate) %>%
+  summarise(mean_friction_costs_pgdp = mean((friction_costs / gdp) * 100)) %>%
+  group_by(iso3c) %>%
+  summarise(across(mean_friction_costs_pgdp,
+                   list(
+                     low = lf,
+                     med = mf,
+                     high = hf
+                   )))
+
+# our results table which we can then save in the tables directory
+friction_costs_pgdp_iso3c
+write.csv(friction_costs_pgdp_iso3c, "analysis/tables/friction_costs_pgdp_iso3c.csv")
+
+
 # ********************
 # Healthcare Costs
 # ********************
@@ -1363,8 +1849,9 @@ save_figs(name = "friction_costs_pgdp_plot", friction_costs_pgdp_plot)
 hc_costs <- res_full %>%
   filter(name == "hospitalisations")
 
-# add in usa gdp deflator index 2019, 2021, 2022
+# add in usa gdp deflator index 2010, 2019, 2021, 2022
 
+usa_gdp_deflator2010 <- 92.1
 usa_gdp_deflator2019 <- 107.3
 usa_gdp_deflator2020 <- 108.7
 usa_gdp_deflator2021 <- 113.6
@@ -1388,113 +1875,55 @@ hc_costs_lmic <- hc_costs_lmic %>%
 hc_costs_lmic <- hc_costs_lmic %>%
   mutate(cost_total = cost_pd2021 * hospitalisations_duration * averted)
 
-# do the name for non-european countries with missing healthcare data
-# read in usa healthcare cost data for non-european high-income countries with missing data
+# read in high income country hc costs
 
-usa_hc_costs <- read_csv("analysis/data/raw/usa_hc_costs.csv")
+hic_hccosts <- read_csv("analysis/data/raw/hic_hccosts.csv")
 
-# convert the 2022 USD cost values to 2021 USD
+# convert into usd 2021
 
-usa_hc_costs <- usa_hc_costs %>%
-  mutate(cost_2021 = cost_2022 * (usa_gdp_deflator2021/usa_gdp_deflator2022)) %>%
-  mutate(upper_cost_2021 = upper_cost_2022 * (usa_gdp_deflator2021/usa_gdp_deflator2022)) %>%
-  mutate(lower_cost_2021 = upper_cost_2022 * (usa_gdp_deflator2021/usa_gdp_deflator2022)) %>%
-  mutate(hc_pgdppc = cost_2021/70219.47) %>% # USA GDP per capita (2021)
-  mutate(hc_pgdppc_upper = upper_cost_2021/70219.47) %>%
-  mutate(hc_pgdppc_lower = lower_cost_2021/70219.47)
+usa_gdp_deflator2010 <- 92.1
 
-# now apply these values and caluclate the healthcare costs for each high-income, non-european country
-hc_costs_hic_noneurope <- hc_costs %>%
-  filter(income_group == "H", region !="europe_central_asia") %>%
-  left_join(usa_hc_costs, by = "iso3c") %>%
-  mutate(hc_pgdppc = NA) %>%
-  mutate(hc_pgdppc_upper = NA) %>%
-  mutate(hc_pgdppc_lower = NA)
+hic_hccosts <- hic_hccosts %>%
+  mutate(mean_hccostpd_usd2021 = mean_hccostpd_id * (usa_gdp_deflator2021/usa_gdp_deflator2010)) %>%
+  mutate(upper_hccostspd_usd2021 = upper_hccostspd_id * (usa_gdp_deflator2021/usa_gdp_deflator2010)) %>%
+  mutate(lower_hccostspd_usd2021 = lower_hccostspd_id * (usa_gdp_deflator2021/usa_gdp_deflator2010))
 
-# use the US healthcare cost as a percentage of GDP per capita and apply it to other countries
-hc_costs_hic_noneurope$hc_pgdppc[is.na(hc_costs_hic_noneurope$hc_pgdppc)] <-  usa_hc_costs$hc_pgdppc
-hc_costs_hic_noneurope$hc_pgdppc_upper[is.na(hc_costs_hic_noneurope$hc_pgdppc_upper)] <- usa_hc_costs$hc_pgdppc_upper
-hc_costs_hic_noneurope$hc_pgdppc_lower[is.na(hc_costs_hic_noneurope$hc_pgdppc_lower)] <- usa_hc_costs$hc_pgdppc_lower
+# convert to total costs by multiplying by hospitalisation duration
 
-# convert the costs to USD 2021
+hic_hccosts <- hic_hccosts %>%
+  mutate(mean_hccosts = mean_hccostpd_usd2021 * hospitalisations_duration) %>%
+  mutate(upper_hccosts = upper_hccostspd_usd2021 * hospitalisations_duration) %>%
+  mutate(lower_hccosts = lower_hccostspd_usd2021 * hospitalisations_duration)
 
-hc_costs_hic_noneurope <- hc_costs_hic_noneurope %>%
-  mutate(cost_2021 = hc_pgdppc * gdppc) %>%
-  mutate(upper_cost_2021 = hc_pgdppc_upper * gdppc) %>%
-  mutate(lower_cost_2021 = hc_pgdppc_lower * gdppc)
+# merge the total costs with res_full
+# filter res_full to just be hospitalisations and high income countries
+hic_hosp <- res_full %>%
+  filter(name == "hospitalisations", income_group == "HIC")
 
-# calculate the total cost
+# make data frame that is just the 2021 costs
+hic_hccosts_2021 <- hic_hccosts %>%
+  select(iso3c, mean_hccosts, upper_hccosts, lower_hccosts)
 
-hc_costs_hic_noneurope <- hc_costs_hic_noneurope %>%
-  mutate(cost_total = cost_2021 * hospitalisations_duration * averted) %>%
-  mutate(upper_cost_total = upper_cost_2021 * hospitalisations_duration * averted) %>%
-  mutate(lower_cost_total = lower_cost_2021 * hospitalisations_duration * averted)
+# merge the two new data frames
+hic_hccosts_2021 <- hic_hosp %>%
+  left_join(hic_hccosts_2021, by = "iso3c")
 
-# do the same for high income, european countries
+# calculate total costs based on number of hospitalisations averted
+hic_hccosts_2021 <- hic_hccosts_2021 %>%
+  mutate(cost_total = mean_hccosts * averted) %>%
+  mutate(uppercost_total = upper_hccosts * averted) %>%
+  mutate(lowercost_total = lower_hccosts * averted)
 
-# read in Spain healthcare cost data for european high-income countries with missing data
-spain_hc_costs <- read_csv("analysis/data/raw/spain_hc_costs.csv")
+# bind with lmic costs
 
-spain_hc_costs <- spain_hc_costs %>%
-  mutate(cost_2021 = mean_cost_usd2020 * (usa_gdp_deflator2021/usa_gdp_deflator2020)) %>%
-  mutate(upper_cost_2021 = upper_cost_usd2020 * (usa_gdp_deflator2021/usa_gdp_deflator2020)) %>%
-  mutate(lower_cost_2021 = upper_cost_usd2020 * (usa_gdp_deflator2021/usa_gdp_deflator2020)) %>%
-  mutate(hc_pgdppc = cost_2021/30488.82) %>% # spain GDP per capita (2021)
-  mutate(hc_pgdppc_upper = upper_cost_2021/30488.82) %>%
-  mutate(hc_pgdppc_lower = lower_cost_2021/30488.82)
-
-# now apply these values and caluclate the healthcare costs for each high-income, non-european country
-hc_costs_hic_europe <- hc_costs %>%
-  filter(income_group == "H", region == "europe_central_asia") %>%
-  left_join(usa_hc_costs, by = "iso3c") %>%
-  mutate(hc_pgdppc = NA) %>%
-  mutate(hc_pgdppc_upper = NA) %>%
-  mutate(hc_pgdppc_lower = NA)
-
-# use the Spain healthcare cost as a percentage of GDP per capita and apply it to other countries
-hc_costs_hic_europe$hc_pgdppc[is.na(hc_costs_hic_europe$hc_pgdppc)] <-  spain_hc_costs$hc_pgdppc
-hc_costs_hic_europe$hc_pgdppc_upper[is.na(hc_costs_hic_europe$hc_pgdppc_upper)] <- spain_hc_costs$hc_pgdppc_upper
-hc_costs_hic_europe$hc_pgdppc_lower[is.na(hc_costs_hic_europe$hc_pgdppc_lower)] <- spain_hc_costs$hc_pgdppc_lower
-
-# convert the costs to USD 2021
-
-hc_costs_hic_europe <- hc_costs_hic_europe %>%
-  mutate(cost_2021 = hc_pgdppc * gdppc) %>%
-  mutate(upper_cost_2021 = hc_pgdppc_upper * gdppc) %>%
-  mutate(lower_cost_2021 = hc_pgdppc_lower * gdppc)
-
-# calculate the total cost
-
-hc_costs_hic_europe <- hc_costs_hic_europe %>%
-  mutate(cost_total = cost_2021 * hospitalisations_duration * averted) %>%
-  mutate(upper_cost_total = upper_cost_2021 * hospitalisations_duration * averted) %>%
-  mutate(lower_cost_total = lower_cost_2021 * hospitalisations_duration * averted)
-
-# now, need to group all the costs together
-
-hc_costs_grouped <- bind_rows(hc_costs_hic_europe, hc_costs_hic_europe,
-                              hc_costs_lmic)
-
-# checking if they were grouped properly/data was assigned properly
-
-num_rows_grouped <- nrow(hc_costs_grouped)
-
-print(num_rows_grouped)
-
-num_rows <- nrow(hc_costs)
-
-print(num_rows)
+hc_costs_grouped <- bind_rows(hic_hccosts_2021, hc_costs_lmic)
 
 # get healthcare costs as a % of GDP
-
-hc_costs_grouped <- hc_costs_grouped %>%
-  mutate(hccosts_pgdp = (cost_total / gdp)*100)
-
 # sum costs averted for each income group
 
 hc_costs_total <- hc_costs_grouped  %>%
   group_by(income_group, replicate) %>%
-  summarise(hc_costs_total = sum(cost_total, na.rm = TRUE)) %>%
+  summarise(hc_costs_total = sum(cost_total)) %>%
   group_by(income_group) %>%
   summarise(across(hc_costs_total,
                    list(
@@ -1503,19 +1932,19 @@ hc_costs_total <- hc_costs_grouped  %>%
                      high = hf
                    )))
 
-# set the factor levels of income_group in the desired order
-hc_costs_total$income_group <- factor(hc_costs_total$income_group, levels = c("H", "UM", "LM", "L"))
+#set the factor levels of income_group in the desired order
+hc_costs_total$income_group <- factor(hc_costs_total$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
 hc_costs_total <- hc_costs_total %>%
   arrange(income_group)
 
 # our results table which we can then save in the tables directory
 hc_costs_total
-write.csv(hc_costs_total, "analysis/tables/hc_costs_total .csv")
+write.csv(hc_costs_total, "analysis/tables/hc_costs_total.csv")
 
 # get mean % of GDP for each income group
 hccosts_pgdp <- hc_costs_grouped %>%
   group_by(income_group, replicate) %>%
-  summarise(mean_hccosts_pgdp = mean(hccosts_pgdp, na.rm = TRUE)) %>%
+  summarise(mean_hccosts_pgdp = sum((cost_total / gdp) * Ng * 100, na.rm=TRUE) / sum(Ng, na.rm = TRUE)) %>%
   group_by(income_group) %>%
   summarise(across(mean_hccosts_pgdp,
                    list(
@@ -1524,15 +1953,15 @@ hccosts_pgdp <- hc_costs_grouped %>%
                      high = hf
                    )))
 
+
 # set the factor levels of income_group in the desired order
-hccosts_pgdp$income_group <- factor(hccosts_pgdp$income_group, levels = c("H", "UM", "LM", "L"))
+hccosts_pgdp$income_group <- factor(hccosts_pgdp$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
 hccosts_pgdp <- hccosts_pgdp %>%
   arrange(income_group)
 
 # our results table which we can then save in the tables directory
 hccosts_pgdp
 write.csv(hccosts_pgdp, "analysis/tables/hccosts_pgdp.csv")
-
 
 # create bar graph to express healthcare costs averted per income group as a percentage of gdp
 healthcarecosts_pgdp_plot <- hccosts_pgdp %>%
@@ -1554,36 +1983,122 @@ healthcarecosts_pgdp_plot
 save_figs(name = "healthcarecosts_pgdp_plot", healthcarecosts_pgdp_plot, plot_dir = "/Users/halliebenjamin/Documents/GitHub/roiv/analysis/plots")
 
 
+# sum costs averted for each iso3c
+hc_costs_total_iso3c <- hc_costs_grouped  %>%
+  group_by(iso3c, replicate) %>%
+  summarise(health_costs_total = sum(cost_total)) %>%
+  group_by(iso3c) %>%
+  summarise(across(health_costs_total,
+                   list(
+                     low = lf,
+                     med = mf,
+                     high = hf
+                   )))
+
+
+# our results table which we can then save in the tables directory
+hc_costs_total_iso3c
+write.csv(hc_costs_total_iso3c, "analysis/tables/hc_costs_total_iso3c.csv")
+
+# get mean % of GDP for each iso3c
+hccosts_pgdp_iso3c <- hc_costs_grouped %>%
+  group_by(iso3c, replicate) %>%
+  summarise(mean_hccosts_pgdp = mean((cost_total / gdp)*100)) %>%
+  group_by(iso3c) %>%
+  summarise(across(mean_hccosts_pgdp,
+                   list(
+                     low = lf,
+                     med = mf,
+                     high = hf
+                   )))
+
+# our results table which we can then save in the tables directory
+hccosts_pgdp_iso3c
+write.csv(hccosts_pgdp_iso3c, "analysis/tables/hccosts_pgdp_iso3c.csv")
+
+
 # *************************
 # Total Costs into Vaccines
 # *************************
 
-# applying delivery costs in LMICs
-del_costs <- read_csv("analysis/data/raw/population_data.csv") %>%
-  left_join(
-    read_csv("analysis/data/raw/worldbank_classifications.csv"),
-    by = "iso3c"
-  )
+# delivery costs
+del_cost_iso3c <- res_full %>%
+  mutate(del_cost = pop_vac * 3.70) %>%
+  group_by(iso3c, replicate) %>%
+  summarise(del_cost_total = sum(del_cost, na.rm = TRUE)) %>%
+  group_by(iso3c) %>%
+  summarise(across(del_cost_total,
+                   list(
+                     low = lf,
+                     med = mf,
+                     high = hf
+                   )))
 
-del_costs_lmic <- subset(del_costs, income_group %in% c("L", "LM", "UM")) %>%
-  mutate(del_costspp_2020 = 4.45)
+# our results table which we can then save in the tables directory
+del_cost_iso3c
+write.csv(del_cost_iso3c, "analysis/tables/del_cost_iso3c.csv")
 
-# convert to US$ 2021 and calculate the total costs
-del_costs_lmic <- del_costs_lmic %>%
-  mutate(del_costspp_2021 = del_costspp_2020 * (usa_gdp_deflator2021/usa_gdp_deflator2020)) %>%
-  # multiply costs per person by vaccine coverage percentage of population and population
-  mutate(del_costs_2021 = case_when(
-    income_group == "L" ~ pop * 0.0357 * del_costspp_2021,
-    income_group == "LM" ~ pop * 0.2980 * del_costspp_2021,
-    income_group == "UM" ~ pop * 0.510 * del_costspp_2021
-  ))
+del_cost_income <- res_full %>%
+  mutate(del_cost = pop_vac * 3.70) %>%
+  group_by(income_group, replicate) %>%
+  summarise(del_cost_total = sum(del_cost, na.rm = TRUE)) %>%
+  group_by(income_group) %>%
+  summarise(across(del_cost_total,
+                   list(
+                     low = lf,
+                     med = mf,
+                     high = hf
+                   )))
 
+# set the factor levels of income_group in the desired order
+del_cost_income$income_group <- factor(del_cost_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+del_cost_income <- del_cost_income %>%
+  arrange(income_group)
 
-del_cost_lmic_sum <- del_costs_lmic %>%
-  summarise(total_del_costs_lmic = sum(del_costs_2021, na.rm = TRUE))
+# our results table which we can then save in the tables directory
+del_cost_income
+write.csv(del_cost_income, "analysis/tables/del_cost_income.csv")
 
+# get in-terms of pgdp
+del_cost_pgdp_income <- res_full %>%
+  mutate(del_cost = pop_vac * 3.70) %>%
+  group_by(income_group, replicate) %>%
+  summarise(del_cost_pgdp = sum((del_cost / gdp) * Ng * 100, na.rm=TRUE) / sum(Ng, na.rm = TRUE)) %>%
+  group_by(income_group) %>%
+  summarise(across(del_cost_pgdp,
+                   list(
+                     low = lf,
+                     med = mf,
+                     high = hf
+                   )))
 
-dev_funding <- 10011000000
+# set the factor levels of income_group in the desired order
+del_cost_pgdp_income$income_group <- factor(del_cost_pgdp_income$income_group, levels = c("HIC", "UMIC", "LMIC", "LIC"))
+del_cost_pgdp_income <- del_cost_pgdp_income %>%
+  arrange(income_group)
+
+# our results table which we can then save in the tables directory
+del_cost_pgdp_income
+write.csv(del_cost_pgdp_income, "analysis/tables/del_cost_pgdp_income.csv")
+
+# get sum of delivery costs across all income groups
+del_cost <- res_full %>%
+  group_by(replicate) %>%
+  mutate(del_cost = pop_vac * 3.70) %>%
+  summarise(del_cost_total = sum(del_cost, na.rm = TRUE)) %>%
+  summarise(across(del_cost_total,
+                   list(
+                     low = lf,
+                     med = mf,
+                     high = hf
+                   )))
+
+# our results table which we can then save in the tables directory
+del_cost
+write.csv(del_cost, "analysis/tables/del_cost.csv")
+
+dev_funding <- 14407549755.12 * (usa_gdp_deflator2021/usa_gdp_deflator2020)
+apa <-  45442990000 * (usa_gdp_deflator2021/usa_gdp_deflator2020)
 
 # ********************
 # Return on Investment
@@ -1591,9 +2106,9 @@ dev_funding <- 10011000000
 
 # welfarist - monetized QALYs, covid-19 healthcare costs, human capital costs, productivity losses
 
-# sum of monetized qalys
+# sum of undiscounted monetized qalys
 
-sum_monqaly <- res_full %>%
+sum_undiscmonqaly <- res_full %>%
   mutate(monqalys_averted = case_when(
     name == "infections" ~ averted * infections_duration
     * -(qaly_loss/365.25) * median_wtp_threshold,
@@ -1613,8 +2128,32 @@ sum_monqaly <- res_full %>%
            )))
 
 # save results
-sum_monqaly
-write.csv(sum_monqaly, "analysis/tables/sum_monqaly.csv")
+sum_undiscmonqaly
+write.csv(sum_undiscmonqaly, "analysis/tables/sum_undiscmonqaly.csv")
+
+# sum of discounted monetized qalys
+sum_discmonqaly <- res_full %>%
+  mutate(monqalys_averted = case_when(
+    name == "infections" ~ averted * infections_duration
+    * -(qaly_loss/365.25) * median_wtp_threshold,
+    name == "hospitalisations" ~ averted * hospitalisations_duration
+    * -(qaly_loss/365.25) * median_wtp_threshold,
+    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
+                        * median_wtp_threshold)
+  )) %>%
+  group_by(replicate) %>%
+  summarise(monqalys_averted_sum = sum(monqalys_averted, na.rm=TRUE)) %>%
+  summarise(
+    across(monqalys_averted_sum,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# save results
+sum_discmonqaly
+write.csv(sum_discmonqaly, "analysis/tables/sum_discmonqaly.csv")
 
 # sum of human capital costs
 sum_humancapital <- human_capital %>%
@@ -1633,10 +2172,9 @@ sum_humancapital
 write.csv(sum_humancapital, "analysis/tables/sum_humancapital.csv")
 
 # sum of friction costs
-
 sum_frictioncosts <- friction_costs %>%
   group_by(replicate) %>%
-  summarise(friction_costs_total = sum(friction_costs)) %>%
+  summarise(friction_costs_total = sum(friction_costs, na.rm = TRUE)) %>%
   summarise(across(friction_costs_total,
                    list(
                      low = lf,
@@ -1650,7 +2188,6 @@ write.csv(sum_frictioncosts, "analysis/tables/sum_frictioncosts.csv")
 
 
 # sum healthcare costs
-
 sum_hc_costs <- hc_costs_grouped  %>%
   group_by(replicate) %>%
   summarise(hc_costs_total = sum(cost_total, na.rm = TRUE)) %>%
@@ -1666,9 +2203,8 @@ sum_hc_costs
 write.csv(sum_hc_costs, "analysis/tables/sum_hc_costs.csv")
 
 
-# combine the summaries
-
-welfarist_sum <- bind_cols(sum_monqaly, sum_humancapital, sum_frictioncosts, sum_hc_costs) %>%
+# combine the summaries - undiscounted
+welfarist_undiscsum <- bind_cols(sum_undiscmonqaly, sum_humancapital, sum_frictioncosts, sum_hc_costs) %>%
   summarise(
     total_low = monqalys_averted_sum_low + humcap_total_low + friction_costs_total_low + hc_costs_total_low,
     total_med = monqalys_averted_sum_med + humcap_total_med + friction_costs_total_med + hc_costs_total_med,
@@ -1676,13 +2212,42 @@ welfarist_sum <- bind_cols(sum_monqaly, sum_humancapital, sum_frictioncosts, sum
   )
 
 # save results
-welfarist_sum
-write.csv(welfarist_sum, "analysis/tables/welfarist_sum.csv")
+welfarist_undiscsum
+write.csv(welfarist_undiscsum, "analysis/tables/welfarist_undiscsum.csv")
 
-# do ROI with median
+# combine the summaries - discounted
+welfarist_discsum <- bind_cols(sum_discmonqaly, sum_humancapital, sum_frictioncosts, sum_hc_costs) %>%
+  summarise(
+    total_low = monqalys_averted_sum_low + humcap_total_low + friction_costs_total_low + hc_costs_total_low,
+    total_med = monqalys_averted_sum_med + humcap_total_med + friction_costs_total_med + hc_costs_total_med,
+    total_high = monqalys_averted_sum_high + humcap_total_high + friction_costs_total_high + hc_costs_total_high
+  )
 
-roi_welfarist <- (welfarist_sum$total_med -
-                    (dev_funding + del_cost_lmic_sum$total_del_costs_lmic))/(dev_funding + del_cost_lmic_sum$total_del_costs_lmic)
+# save results
+welfarist_discsum
+write.csv(welfarist_discsum, "analysis/tables/welfarist_discsum.csv")
+
+# calculate undiscounted welfarist roi
+
+roi_undiscwelfarist_low <- ((welfarist_undiscsum$total_low) -
+                              (dev_funding + del_cost$del_cost_total_low + apa))/(dev_funding + del_cost$del_cost_total_low + apa)
+
+roi_undiscwelfarist_med <- ((welfarist_undiscsum$total_med) -
+                    (dev_funding + del_cost$del_cost_total_med + apa))/(dev_funding + del_cost$del_cost_total_med + apa)
+
+roi_undiscwelfarist_high <- ((welfarist_undiscsum$total_high) -
+                               (dev_funding + del_cost$del_cost_total_high + apa))/(dev_funding + del_cost$del_cost_total_high + apa)
+
+# calculate discounted welfarist roi
+
+roi_discwelfarist_low <- ((welfarist_discsum$total_low) -
+                              (dev_funding + del_cost$del_cost_total_low + apa))/(dev_funding + del_cost$del_cost_total_low + apa)
+
+roi_discwelfarist_med <- ((welfarist_discsum$total_med) -
+                              (dev_funding + del_cost$del_cost_total_med + apa))/(dev_funding + del_cost$del_cost_total_med + apa)
+
+roi_discwelfarist_high <- ((welfarist_discsum$total_high) -
+                               (dev_funding + del_cost$del_cost_total_high + apa))/(dev_funding + del_cost$del_cost_total_high + apa)
 
 # extra welfarist - VSLYs
 
@@ -1707,11 +2272,6 @@ sum_vsly_undiscounted <- sum_vsly_undiscounted %>%
 sum_vsly_undiscounted
 write.csv(sum_vsly_undiscounted, "analysis/tables/sum_vsly_undiscounted.csv")
 
-# roi calculation
-
-undisc_exwelf_roi <- (sum_vsly_undiscounted$vsly_undiscounted_med -
-                        (dev_funding + del_cost_lmic_sum$total_del_costs_lmic))/(dev_funding + del_cost_lmic_sum$total_del_costs_lmic)
-
 # do the same for discounted vsly
 
 sum_vsly_discounted <- vsly %>%
@@ -1732,14 +2292,27 @@ sum_vsly_discounted <- sum_vsly_discounted %>%
 sum_vsly_discounted
 write.csv(sum_vsly_discounted, "analysis/tables/sum_vsly_discounted.csv")
 
-# roi calculation
-disc_exwelf_roi <- (sum_vsly_discounted$vsly_discounted_med -
-                      (dev_funding + del_cost_lmic_sum$total_del_costs_lmic))/(dev_funding + del_cost_lmic_sum$total_del_costs_lmic)
+# undisc extra welfarist roi calculation
 
+roi_undiscextrawelfarist_low <- (sum_vsly_undiscounted$vsly_undiscounted_low -
+                                   (dev_funding + del_cost$del_cost_total_low + apa))/(dev_funding + del_cost$del_cost_total_low + apa)
 
+roi_undiscextrawelfarist_med <- (sum_vsly_undiscounted$vsly_undiscounted_med -
+                                   (dev_funding + del_cost$del_cost_total_med + apa))/(dev_funding + del_cost$del_cost_total_med + apa)
 
+roi_undiscextrawelfarist_high <- (sum_vsly_undiscounted$vsly_undiscounted_high -
+                                    (dev_funding + del_cost$del_cost_total_high + apa))/(dev_funding + del_cost$del_cost_total_high + apa)
 
+# roi calculation for discounted extra-welfarist
 
+roi_discextrawelfarist_low <- (sum_vsly_discounted$vsly_discounted_low -
+                                   (dev_funding + del_cost$del_cost_total_low + apa))/(dev_funding + del_cost$del_cost_total_low + apa)
+
+roi_discextrawelfarist_med <- (sum_vsly_discounted$vsly_discounted_med -
+                                   (dev_funding + del_cost$del_cost_total_med + apa))/(dev_funding + del_cost$del_cost_total_med + apa)
+
+roi_discextrawelfarist_high <- (sum_vsly_discounted$vsly_discounted_high -
+                                    (dev_funding + del_cost$del_cost_total_high + apa))/(dev_funding + del_cost$del_cost_total_high + apa)
 
 
 
