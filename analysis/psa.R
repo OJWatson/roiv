@@ -1,5 +1,5 @@
 ranges <- list(
-  vsl = c(0,30e6), # need to double check
+  vsl = c(0, 30e6), # need to double check
   wtp_hic = c(0,1),
   wtp_umic = c(0,1),
   wtp_lmic = c(0,1),
@@ -19,7 +19,50 @@ vsl_shape <- (vsl_mean / vsl_sd)^2
 vsl_scale <- vsl_sd^2 / vsl_mean
 vsl_samples <- qgamma(lhs_samples[, 1], shape = vsl_shape, scale = vsl_scale)
 
-# WTP beta distribution for median and IQR
+# lets check if this looks sensible by comparing against following (or wherever you got your VSL from as they likely have a low and high)
+# https://aspe.hhs.gov/sites/default/files/2021-07/hhs-guidelines-appendix-d-vsl-update.pdf
+quantile(vsl_samples, c(0.025, 0.975))
+
+## TODO: Address whether this Gamma makes sense against literature and skew knowledge
+
+## TODO: Bring in correct way to get dist below ----------
+# The reason for doing the below is that your WTP samples do not align with your
+# desired summary stats, e.g. summary(wtp_hic_samples) should give an IQR and median that you have found in literature
+
+# # Define median and IQR
+# mu_hic <- 0.68       # Median (approximate mean)
+# iqr_hic <- 0.88 - 0.50  # IQR
+#
+# # Define a function to minimise the difference between observed and beta parameters
+# estimate_beta <- function(params) {
+#   shape1 <- params[1]
+#   shape2 <- params[2]
+#
+#   # Compute theoretical median and IQR from the beta distribution
+#   median_theoretical <- qbeta(0.5, shape1, shape2)
+#   iqr_theoretical <- qbeta(0.75, shape1, shape2) - qbeta(0.25, shape1, shape2)
+#
+#   # Calculate squared differences
+#   median_diff <- (median_theoretical - mu_hic)^2
+#   iqr_diff <- (iqr_theoretical - iqr_hic)^2
+#
+#   return(median_diff + iqr_diff)
+# }
+#
+# # Use optimisation to find shape1 and shape2
+# optim_result <- optim(
+#   par = c(1, 1), # Initial guesses for shape1 and shape2
+#   fn = estimate_beta,
+#   method = "L-BFGS-B",
+#   lower = c(0.01, 0.01) # Parameters must be positive
+# )
+#
+# # Extract results
+# shape1_est <- optim_result$par[1]
+# shape2_est <- optim_result$par[2]
+
+
+# WTP beta distribution for median and IQR -------
 # WTP for HIC
 mu_hic <- 0.68  # Median (approximate mean)
 iqr_hic <- 0.88 - 0.5  # IQR
@@ -53,6 +96,13 @@ shape2_lic <- (1 - mu_lic) * shape1_lic
 wtp_lic_samples <- qbeta(lhs_samples[, 5], shape1 = shape1_lic, shape2 = shape2_lic)
 
 # QALYS - beta distribution with mean and 95% CI
+
+## TODO: These shape and scale approximations are not giving the right values
+## You can check if it is working correct by looking at your samples:
+## quantile(QALY_infection_samples, c(0.025, 0.975)) - this should be close to your lower and upper
+## mean(QALY_infection_samples) - this should be close to your mu (assuming this is mean)
+## the above should have
+
 # QALY for infection
 mu_qaly_inf <- 0.007
 lower_qaly_inf <- 0.002
