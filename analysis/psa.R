@@ -19,7 +19,10 @@ vsl_shape <- (vsl_mean / vsl_sd)^2
 vsl_scale <- vsl_sd^2 / vsl_mean
 vsl_samples <- qgamma(lhs_samples[, 1], shape = vsl_shape, scale = vsl_scale)
 
+<<<<<<< HEAD
 # vsl data - $1,912,601	$10,519,304	$19,126,006
+=======
+>>>>>>> 3c758c4a5c72c60eec571caab739ce7de516a5a6
 # lets check if this looks sensible by comparing against following (or wherever you got your VSL from as they likely have a low and high)
 # https://aspe.hhs.gov/sites/default/files/2021-07/hhs-guidelines-appendix-d-vsl-update.pdf
 quantile(vsl_samples, c(0.025, 0.975))
@@ -62,7 +65,13 @@ quantile(vsl_samples, c(0.025, 0.975))
 # shape1_est <- optim_result$par[1]
 # shape2_est <- optim_result$par[2]
 
+<<<<<<< HEAD
 # WTP for HICs
+=======
+
+# WTP beta distribution for median and IQR -------
+# WTP for HIC
+>>>>>>> 3c758c4a5c72c60eec571caab739ce7de516a5a6
 mu_hic <- 0.68  # Median (approximate mean)
 iqr_hic <- 0.88 - 0.5  # IQR
 var_hic <- ((iqr_hic / 2)^2) / 3  # Variance approximation
