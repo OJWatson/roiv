@@ -1,5 +1,6 @@
 setwd("~/documents/GitHub/roiv")
 library(tidyverse)
+library("MetBrewer")
 
 # read in the files for the model fits
 url <- "https://github.com/mrc-ide/covid-vaccine-impact-orderly/tree/by_age/data/excess_mortality/counterfactual_data"
