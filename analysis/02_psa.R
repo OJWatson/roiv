@@ -282,6 +282,7 @@ sens_df <- data.frame("replicate" = 1:100,
                       "QALY_hospitalisations_samples" = QALY_hospitalisations_samples,
                       "QALY_deaths_samples" = QALY_deaths_samples,
                       "frictionperiod_samples" = frictionperiod_samples)
+saveRDS(sens_df, "analysis/data/derived/psa_sens_df.rds")
 
 # assign the sampling values to the analysis and using it for calculations
 
@@ -292,6 +293,12 @@ vsly <- readRDS("analysis/data/derived/vsly.rds")
 vsly_psa <- vsly %>%
   left_join(sens_df, by = "replicate") %>%  # Join based on replicate
   mutate(vsl_usa = vsl_samples)
+
+
+# add uncertainty functions
+lf <- function(x){quantile(x, 0.025, na.rm=TRUE)}
+mf <- function(x){quantile(x, 0.5, na.rm=TRUE)}
+hf <- function(x){quantile(x, 0.975, na.rm=TRUE)}
 
 # getting total monetary value of vsly per income group (population-weighted)
 vsly_avertedtotals_psa <- vsly_psa %>%
