@@ -348,7 +348,7 @@ sum_undiscmonqaly_psa <- qaly %>%
 
 # our results table which we can then save in the tables directory
 sum_undiscmonqaly_psa
-write.csv(sum_undiscmonqaly_psa, "analysis/tablessum_undiscmonqaly_psa.csv")
+write.csv(sum_undiscmonqaly_psa, "analysis/tables/sum_undiscmonqaly_psa.csv")
 
 # discounted
 sum_discmonqaly_psa <- qaly %>%
@@ -406,7 +406,7 @@ friction_costs_psa <- friction_costs %>%
 
 # our results table which we can then save in the tables directory
 friction_costs_psa
-write.csv(friction_costs_psa, "analysis/friction_costs_psa.csv")
+write.csv(friction_costs_psa, "analysis/tables/friction_costs_psa.csv")
 
 # call in healthcare costs
 sum_hc_costs <- readRDS("analysis/data/derived/sum_hc_costs.rds")
