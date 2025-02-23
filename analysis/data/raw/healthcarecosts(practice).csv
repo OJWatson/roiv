@@ -1,0 +1,186 @@
+﻿country,iso3c,income_group,cost
+Afghanistan,AFG,L,6515.63
+Albania,ALB,UM,1688.00
+Algeria,DZA,LM,3192.06
+Angola,AGO,LM,3192.06
+Antigua & Barbuda,ATG,H,21752.00
+Argentina,ARG,UM,1688.00
+Armenia,ARM,UM,1688.00
+Aruba,ABW,H,21752.00
+Australia,AUS,H,21752.00
+Austria,AUT,H,21752.00
+Azerbaijan,AZE,UM,1688.00
+Bahamas,BHS,H,21752.00
+Bahrain,BHR,H,21752.00
+Bangladesh,BGD,LM,3192.06
+Barbados,BRB,H,21752.00
+Belarus,BLR,UM,1688.00
+Belgium,BEL,H,21752.00
+Belize,BLZ,UM,1688.00
+Benin,BEN,LM,3192.06
+Bhutan,BTN,LM,3192.06
+Bolivia,BOL,LM,3192.06
+Bosnia & Herzegovina,BIH,UM,1688.00
+Botswana,BWA,UM,1688.00
+Brazil,BRA,UM,1688.00
+Brunei,BRN,H,21752.00
+Bulgaria,BGR,UM,1688.00
+Burkina Faso,BFA,L,6515.63
+Burundi,BDI,L,6515.63
+Cambodia,KHM,LM,3192.06
+Cameroon,CMR,LM,3192.06
+Canada,CAN,H,21752.00
+Cape Verde,CPV,LM,3192.06
+Central African Republic,CAF,L,6515.63
+Chad,TCD,L,6515.63
+Chile,CHL,H,21752.00
+Colombia,COL,UM,1688.00
+Comoros,COM,LM,3192.06
+Congo - Brazzaville,NA,LM,3192.06
+Congo - Kinshasa,COD,L,6515.63
+Costa Rica,CRI,UM,1688.00
+Cote d'Ivoire,CIV,LM,3192.06
+Croatia,HRV,H,21752.00
+Cuba,CUB,UM,1688.00
+Curacao,CUW,H,21752.00
+Cyprus,CYP,H,21752.00
+Czechia,CZE,H,21752.00
+Denmark,DNK,H,21752.00
+Djibouti,DJI,LM,3192.06
+Dominican Republic,DOM,UM,1688.00
+Ecuador,ECU,UM,1688.00
+Egypt,EGY,LM,3192.06
+El Salvador,SLV,LM,3192.06
+Equatorial Guinea,GNQ,UM,1688.00
+Eritrea,ERI,L,6515.63
+Estonia,EST,H,21752.00
+Eswatini,SWZ,LM,3192.06
+Ethiopia,ETH,L,6515.63
+Fiji,FJI,UM,1688.00
+Finland,FIN,H,21752.00
+France,FRA,H,21752.00
+French Polynesia,PYF,H,21752.00
+Gabon,GAB,UM,1688.00
+Gambia,GMB,L,6515.63
+Georgia,GEO,UM,1688.00
+Germanu,DEU,H,21752.00
+Ghana,GHA ,LM,3192.06
+Greece,GRC ,H,21752.00
+Grenada,GRD,UM,1688.00
+Guatemala,GTM,UM,1688.00
+Guinea,GIN,L,6515.63
+Guinea-Bissau,GNB,L,6515.63
+Guyana,GUY,UM,1688.00
+Haiti,HTI,L,6515.63
+Honduras,HND,LM,3192.06
+Hong Kong SAR China,HKG,H,21752.00
+Hungary,HUN,H,21752.00
+Iceland,ISL,H,21752.00
+India,IND,LM,3192.06
+Indonesia,IDN,UM,1688.00
+Iran,NA,UM,1688.00
+Iraq,IRQ,UM,1688.00
+Ireland,IRL,H,21752.00
+Israel,ISR,H,21752.00
+Italy ,ITA,H,21752.00
+Jamaica,JAM,UM,1688.00
+Japan,JPN,H,21752.00
+Jordan,JOR,UM,1688.00
+Kazakhstan,KAZ,UM,1688.00
+Kenya,KEN ,LM,3192.06
+Kuwait,KWT,H,21752.00
+Kyrgyzstan,KGC,LM,3192.06
+Laos,LAO,LM,3192.06
+Latvia,LVA ,H,21752.00
+Lebanon,LBN,UM,1688.00
+Lesotho,LSO,LM,3192.06
+Liberia,LBR,L,6515.63
+Libya,LBY ,UM,1688.00
+Lithuania,LTU,H,21752.00
+Luxembourg,LUX,H,21752.00
+Macao SAR China,MAC,H,21752.00
+Madagascar,MDG,L,6515.63
+Malwai,MWI,L,6515.63
+Malaysia,MYS,UM,1688.00
+Maldives,MDV,UM,1688.00
+Mali,MLI,L,6515.63
+Malta,MLT,H,21752.00
+Mauritania,MRT,LM,3192.06
+Mauritius,MUS,H,21752.00
+Mexico,MEX,UM,1688.00
+Moldova,MDA,LM,3192.06
+Mongolia,MNG,LM,3192.06
+Montenegro,MNE,UM,1688.00
+Morocco,MAR,LM,3192.06
+Mozambique,MOZ,L,6515.63
+Myanmar (Burma),MMR ,LM,3192.06
+Namibia,NAM,UM,1688.00
+Nepal,NPL,LM,3192.06
+Netherlands,NLD,H,21752.00
+New Zealand,NZL,H,21752.00
+Nicaragua,NIC,LM,3192.06
+Niger,NER,L,6515.63
+Nigeria,NGA,LM,3192.06
+North Korea,PRK,,
+North Macedonia,MKD,UM,1688.00
+Norway,NOR,H,21752.00
+Oman,OMN,H,21752.00
+Pakistan,PAK,LM,3192.06
+Palestinian Territories,PSE,,
+Panama,PAN,H,21752.00
+Papua New Guinea,PNG,LM,3192.06
+Paraguay,PRY,UM,1688.00
+Peru,PER,UM,1688.00
+Philippines,PHL,LM,3192.06
+Poland,POL,H,21752.00
+Portugal,PRT,H,21752.00
+Qatar,QAT,H,21752.00
+Romania,ROU,H,21752.00
+Russia,RUS,UM,1688.00
+Rwanda,RWA,L,6515.63
+Sao Tome and Principe,STP,LM,3192.06
+Saudia Arabia,SAU,H,21752.00
+Senegal,SEN,LM,3192.06
+Serbia,SRB,UM,1688.00
+Seychelles,SYC,H,21752.00
+Sierra Leone,SLE,L,6515.63
+Singapore,SGP,H,21752.00
+Slovakia,SVK,H,21752.00
+Slovenia,SVN,H,21752.00
+Solomon Islands,SLB,LM,3192.06
+Somalia,SOM,L,6515.63
+South Africa,ZAF,UM,1688.00
+South Korea,KOR ,UM,1688.00
+South Sudan,SSD,L,6515.63
+Spain,ESP,H,21752.00
+Sri Lanka,LKA,LM,3192.06
+St. Lucia,LCA,UM,1688.00
+St. Vincent & Grenadines,VCT,UM,1688.00
+Sudan ,SDN,L,6515.63
+Suriname,SUR,UM,1688.00
+Sweden,SWE,H,21752.00
+Switzerland,CHE,H,21752.00
+Syria,SYR,L,6515.63
+Taiwan,TWN,H,21752.00
+Tajikistan,TJK,L,6515.63
+Tanzania,TZA,LM,3192.06
+Thailand,THA,UM,1688.00
+Timor-Leste,TLS,LM,3192.06
+Togo,TGO,L,6515.63
+Trinidad & Tobago,TTO,H,21752.00
+Tunisia,TUN,LM,3192.06
+Turkey,TUR,UM,1688.00
+Turkmenistan,TKM,UM,1688.00
+Uganda,UGA,L,6515.63
+Ukraine,UKR,LM,3192.06
+United Arab Emirates,ARE,H,21752.00
+United Kingdom,GBR,H,21752.00
+United States,USA,H,21752.00
+Uruguay,URY,H,21752.00
+Uzbekistan,UZB ,LM,3192.06
+Vanuatu,VUT,LM,3192.06
+Venezuela,VEN,UM,1688.00
+Vietnam,VNM,LM,3192.06
+Yemen,YEM,L,6515.63
+Zambia,ZMB,LM,3192.06
+Zimbabwe,ZWE,LM,3192.06
