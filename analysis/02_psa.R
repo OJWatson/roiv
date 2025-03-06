@@ -10,6 +10,7 @@ ranges <- list(
   friction_period_hic = c(0,365) # need to double check
 )
 
+set.seed(123L)
 lhs_samples <- lhs::randomLHS(100, length(ranges))
 
 # VSL with mean and SD - q(gamma) requires shape and scale parameters

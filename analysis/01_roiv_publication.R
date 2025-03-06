@@ -2807,7 +2807,8 @@ healthcarecosts_pgdp_plot
 
 # save the figure to the plots directory using the function
 # save_figs, which is a function in this roiv package (see utils-plot.R)
-save_figs(name = "healthcarecosts_pgdp_plot", healthcarecosts_pgdp_plot, plot_dir = "/Users/halliebenjamin/Documents/GitHub/roiv/analysis/plots")
+save_figs(name = "healthcarecosts_pgdp_plot", healthcarecosts_pgdp_plot,
+          plot_dir = file.path(here::here(), "analysis/plots"))
 
 
 # sum costs averted for each iso3c
