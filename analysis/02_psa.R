@@ -293,8 +293,13 @@ vsly <- readRDS("analysis/data/derived/vsly.rds")
 
 vsly_psa <- vsly %>%
   left_join(sens_df, by = "replicate") %>%  # Join based on replicate
-  mutate(vsl_usa = vsl_samples)
-
+  mutate(vsl_usa = vsl_samples) %>%
+  group_by(iso3c, replicate) %>%
+  mutate(vsl = vsl_usa*(gnipc/gnipc_usa)^1) %>%
+  mutate(w_nglg = sum(Ng*lg) / sum(Ng)) %>%
+  mutate(w_nglghat = sum(Ng * lghat) / sum(Ng)) %>%
+  mutate(vly = vsl / w_nglg) %>%
+  mutate(vly_disc = vsl / w_nglghat)
 
 # add uncertainty functions
 lf <- function(x){quantile(x, 0.025, na.rm=TRUE)}
