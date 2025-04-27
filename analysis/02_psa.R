@@ -290,6 +290,7 @@ saveRDS(sens_df, "analysis/data/derived/psa_sens_df.rds")
 # vsly
 
 vsly <- readRDS("analysis/data/derived/vsly.rds")
+gnipc_usa <- read_csv("analysis/data/raw/GNIPC_2021.csv") %>% filter(iso3c == "USA") %>% pull(gnipc)
 
 vsly_psa <- vsly %>%
   left_join(sens_df, by = "replicate") %>%  # Join based on replicate
