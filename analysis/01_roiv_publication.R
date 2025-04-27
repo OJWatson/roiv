@@ -3093,6 +3093,7 @@ manu <- 380000000 * (usa_gdp_deflator2021/usa_gdp_deflator2020)
 
 vaccine_costs <- del_cost + dev_funding + apa + corporate + manu
 saveRDS(vaccine_costs, "analysis/data/derived/vaccine_costs.rds")
+vaccine_costs
 
 
 # ********************
@@ -3288,6 +3289,9 @@ roi_discwelfarist <- disc_welfarist_sum %>%
 # save results
 roi_discwelfarist
 write.csv(roi_discwelfarist, "analysis/tables/roi_discwelfarist.csv")
+
+test <- res_all %>%
+  filter(replicate == 1, age_group == "0-5", name == "deaths")
 
 
 

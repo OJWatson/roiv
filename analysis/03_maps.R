@@ -145,11 +145,17 @@ max_welfarist <- max(c(
 ), na.rm = TRUE)
 
 # Create the Extra Welfarist plots using a shared color scale and a single legend
-undisc_exwelfarist_plot <- ggplot(data = combined) +
-  geom_sf(aes(fill = undisc_exwelf_med)) +
-  scale_fill_gradientn(colors = palette_vsly, limits = c(min_exwelfarist, max_exwelfarist), na.value = "grey90", name = "Benefits \n (per person vaccinated (% of GDPpc))") +
+undisc_exwelfarist_plot <- ggplot() +
+  # Base layer: all countries with no fill, light outline
+  geom_sf(data = combined, fill = NA, color = "grey80", size = 0.2) +
+  # Data layer: only countries with data, filled
+  geom_sf(data = combined %>% filter(!is.na(undisc_exwelf_med)),
+          aes(fill = undisc_exwelf_med), color = "grey30", size = 0.2) +
+  scale_fill_gradientn(colors = palette_vsly,
+                       limits = c(min_exwelfarist, max_exwelfarist),
+                       name = "Benefits \n(per person vaccinated (% of GDPpc))") +
   theme_minimal() +
-  labs(title = "Undiscounted Monetized Benefits") +
+  labs(title = "Extra-welfarist approach (Undiscounted)") +
   theme(
     axis.text.x = element_blank(),
     axis.text.y = element_blank(),
@@ -157,39 +163,48 @@ undisc_exwelfarist_plot <- ggplot(data = combined) +
     plot.title = element_text(hjust = 0.5, size = 12)
   )
 
-disc_exwelfarist_plot <- ggplot(data = combined) +
-  geom_sf(aes(fill = disc_exwelf_med)) +
-  scale_fill_gradientn(colors = palette_vsly, limits = c(min_exwelfarist, max_exwelfarist), na.value = "grey90", name = "Benefits \n (per person vaccinated (% of GDPpc))") +
+disc_exwelfarist_plot <- ggplot() +
+  geom_sf(data = combined, fill = NA, color = "grey80", size = 0.2) +
+  geom_sf(data = combined %>% filter(!is.na(disc_exwelf_med)),
+          aes(fill = disc_exwelf_med), color = "grey30", size = 0.2) +
+  scale_fill_gradientn(colors = palette_vsly,
+                       limits = c(min_exwelfarist, max_exwelfarist),
+                       name = "Benefits \n(per person vaccinated (% of GDPpc))") +
   theme_minimal() +
-  labs(title = "Discounted Monetized Benefits") +
+  labs(title = "Extra-welfarist approach (Discounted)") +
   theme(
-    axis.text.x = element_blank(),
-    axis.text.y = element_blank(),
+    axis.text = element_blank(),
     panel.grid = element_blank(),
     plot.title = element_text(hjust = 0.5, size = 12)
   )
 
 # Create the Welfarist plots using a shared color scale and a single legend
-undiscwelf_plot <- ggplot(data = combined) +
-  geom_sf(aes(fill = undiscvsly_pp_gdppc_med)) +
-  scale_fill_gradientn(colors = palette_vsly, limits = c(min_welfarist, max_welfarist), na.value = "grey90", name = "Benefits \n (per person vaccinated (% of GDPpc))") +
+undiscwelf_plot <- ggplot() +
+  geom_sf(data = combined, fill = NA, color = "grey80", size = 0.2) +
+  geom_sf(data = combined %>% filter(!is.na(undiscvsly_pp_gdppc_med)),
+          aes(fill = undiscvsly_pp_gdppc_med), color = "grey30", size = 0.2) +
+  scale_fill_gradientn(colors = palette_vsly,
+                       limits = c(min_welfarist, max_welfarist),
+                       name = "Benefits \n(per person vaccinated (% of GDPpc))") +
   theme_minimal() +
-  labs(title = "Undiscounted Monetized Benefits") +
+  labs(title = "Welfarist approach (Undiscounted)") +
   theme(
-    axis.text.x = element_blank(),
-    axis.text.y = element_blank(),
+    axis.text = element_blank(),
     panel.grid = element_blank(),
     plot.title = element_text(hjust = 0.5, size = 12)
   )
 
-discwelf_plot <- ggplot(data = combined) +
-  geom_sf(aes(fill = discvsly_pp_gdppc_med)) +
-  scale_fill_gradientn(colors = palette_vsly, limits = c(min_welfarist, max_welfarist), na.value = "grey90", name = "Benefits \n (per person vaccinated (% of GDPpc))") +
+discwelf_plot <- ggplot() +
+  geom_sf(data = combined, fill = NA, color = "grey80", size = 0.2) +
+  geom_sf(data = combined %>% filter(!is.na(discvsly_pp_gdppc_med)),
+          aes(fill = discvsly_pp_gdppc_med), color = "grey30", size = 0.2) +
+  scale_fill_gradientn(colors = palette_vsly,
+                       limits = c(min_welfarist, max_welfarist),
+                       name = "Benefits \n(per person vaccinated (% of GDPpc))") +
   theme_minimal() +
-  labs(title = "Discounted Monetized Benefits") +
+  labs(title = "Welfarist approach (Discounted)") +
   theme(
-    axis.text.x = element_blank(),
-    axis.text.y = element_blank(),
+    axis.text = element_blank(),
     panel.grid = element_blank(),
     plot.title = element_text(hjust = 0.5, size = 12)
   )
@@ -226,4 +241,37 @@ print(welfarist_plot)
 save_figs(name = "exwelfarist_plot", exwelfarist_plot)
 save_figs(name = "welfarist_plot", welfarist_plot)
 
+### put discounted ones together, and undiscounted ones together
+
+# Ensure legends stay with their respective plots
+# Ensure legends stay with their respective plots
+disc_exwelfarist_plot <- disc_exwelfarist_plot + theme(legend.position = "bottom")
+discwelf_plot <- discwelf_plot + theme(legend.position = "bottom")
+undisc_exwelfarist_plot <- undisc_exwelfarist_plot + theme(legend.position = "bottom")
+undiscwelf_plot <- undiscwelf_plot + theme(legend.position = "bottom")
+
+# Combine the discounted plots with separate legends
+discounted_plot <- (disc_exwelfarist_plot / discwelf_plot) +
+  plot_layout(tag_level = "new") +  # Remove guides = "collect" to keep individual legends
+  plot_annotation(
+    title = "Comparison of discounted monetized benefits",
+    tag_levels = 'A'
+  )
+
+# Combine the undiscounted plots with separate legends
+undiscounted_plot <- (undisc_exwelfarist_plot / undiscwelf_plot) +
+  plot_layout(tag_level = "new") +  # Remove guides = "collect" to keep individual legends
+  plot_annotation(
+    title = "Comparison of undiscounted monetized benefits",
+    tag_levels = 'A'
+  )
+
+# Display the updated combined plots
+print(discounted_plot)
+print(undiscounted_plot)
+
+# Save the figures to the plots directory using the save_figs function
+# (assuming save_figs is a custom function from roiv package)
+save_figs(name = "discounted_plot", discounted_plot)
+save_figs(name = "undiscounted_plot", undiscounted_plot)
 
