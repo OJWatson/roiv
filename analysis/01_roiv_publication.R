@@ -647,15 +647,15 @@ write.csv(inf_pp_income, "analysis/tables/inf_pp_income")
 
 res_full <- res_full %>%
   left_join(
-    read_csv("analysis/data/raw/GNIPC_2021.csv"),
+    read_csv("analysis/data/raw/gnipc_good.csv"),
     by = "iso3c"
   ) %>%
   left_join(
-    read_csv("analysis/data/raw/GDP_iso3c.csv"),
+    read_csv("analysis/data/raw/gdp_2021_good.csv"),
     by = "iso3c"
   ) %>%
   left_join(
-    read_csv("analysis/data/raw/gdppc_2021.csv"),
+    read_csv("analysis/data/raw/gdppc_2021_good.csv"),
     by = "iso3c")
 
 # extract USA GNIPC value
@@ -759,6 +759,11 @@ gdp <- vaccine_iso3c %>%
 gdp_income <- gdp %>%
   group_by(income_group) %>%
   summarise(gdp = sum(gdp, na.rm = TRUE))
+print(gdp_income)
+
+gdp_world <- gdp %>%
+  summarise(gdp = sum(gdp, na.rm = TRUE))
+print(gdp_world)
 
 # our results table which we can then save in the tables directory
 gdp_income
@@ -989,7 +994,7 @@ write.csv(vsly_pp_world, "analysis/tables/vsly_pp_world.csv")
 # make gdppc data frame
 
 gdppc <- vaccine_iso3c %>%
-  left_join(read_csv("analysis/data/raw/gdppc_2021.csv"), by = "iso3c") %>%
+  left_join(read_csv("analysis/data/raw/gdppc_2021_good.csv"), by = "iso3c") %>%
   select(iso3c, income_group, gdppc)
 
 gdppc_income <- gdppc %>%
@@ -1118,6 +1123,25 @@ vsly_pp_gdppc_world <- vsly %>%
 # our results table which we can then save in the tables directory
 vsly_pp_gdppc_world
 write.csv(vsly_pp_gdppc_world, "analysis/tables/vsly_pp_gdppc_world.csv")
+
+# vsly pgdp world
+vsly_pgdp_world <- vsly %>%
+  group_by(replicate) %>%
+  summarise(vsly_undisc_averted = sum((lg_averted*vly), na.rm = TRUE),
+            vsly_disc_averted = sum((lghat_averted*vly_disc), na.rm = TRUE)) %>%
+  mutate(vsly_undisc_pgdp = ((vsly_undisc_averted / total_gdp) * 100),
+         vsly_disc_pgdp = ((vsly_disc_averted / total_gdp) * 100)) %>%
+  summarise(
+    across(vsly_undisc_pgdp:vsly_disc_pgdp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+vsly_pgdp_world
+write.csv(vsly_pgdp_world, "analysis/tables/vsly_pgdp_world.csv")
 
 # ****************
 # Monetized QALYs
@@ -3086,10 +3110,11 @@ del_cost
 write.csv(del_cost, "analysis/tables/del_cost.csv")
 
 del_cost <- 8937890003
-dev_funding <- 14407549755.12 * (usa_gdp_deflator2021/usa_gdp_deflator2020)
-apa <-  45442990000 * (usa_gdp_deflator2021/usa_gdp_deflator2020)
-corporate <- 11000000000 * (1/0.845)
-manu <- 380000000 * (usa_gdp_deflator2021/usa_gdp_deflator2020)
+dev_funding <- ((12258230000 * (usa_gdp_deflator2021/usa_gdp_deflator2020)) + 378030000)
+apa <-  ((38792490000 * (usa_gdp_deflator2021/usa_gdp_deflator2020)) + 2200000000)
+corporate <- ((11000000000 * (1/0.845) * (usa_gdp_deflator2021/usa_gdp_deflator2020))
+              + (517330000* (usa_gdp_deflator2021/usa_gdp_deflator2020)))
+manu <- ((204000000 * (usa_gdp_deflator2021/usa_gdp_deflator2020)) + 176000000)
 
 vaccine_costs <- del_cost + dev_funding + apa + corporate + manu
 saveRDS(vaccine_costs, "analysis/data/derived/vaccine_costs.rds")
@@ -3289,9 +3314,4 @@ roi_discwelfarist <- disc_welfarist_sum %>%
 # save results
 roi_discwelfarist
 write.csv(roi_discwelfarist, "analysis/tables/roi_discwelfarist.csv")
-
-test <- res_all %>%
-  filter(replicate == 1, age_group == "0-5", name == "deaths")
-
-
 

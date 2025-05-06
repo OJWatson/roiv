@@ -1,3 +1,5 @@
+library(lhs)
+
 ranges <- list(
   vsl = c(0, 30e6), # need to double check
   wtp_hic = c(0,1),
@@ -130,7 +132,7 @@ estimate_beta_WTP_umic <- function(params) {
 
 # Use optimisation to find shape1 and shape2
 optim_result_wtp_umic <- optim(
-  par = c(27.54688, "11.56969"), # Initial guesses for shape1 and shape2
+  par = c(27.54688, 11.56969), # Initial guesses for shape1 and shape2
   fn = estimate_beta,
   method = "L-BFGS-B",
   lower = c(0.01, 0.01) # Parameters must be positive
@@ -211,7 +213,6 @@ shape1_est_lic <- optim_result_wtp_lic$par[1]
 shape2_est_lic <- optim_result_wtp_lic$par[2]
 
 wtp_lic_samples <- qbeta(lhs_samples[, 5], shape1 = shape1_est_lic, shape2 = shape2_est_lic)
-
 
 # QALYS - beta distribution with mean and 95% CI
 
@@ -409,6 +410,11 @@ friction_costs_psa <- friction_costs %>%
     income_group == "HIC" ~ frictionperiod_samples,
     income_group %in% c("UMIC", "LMIC", "LIC") ~ (3*30.417)
   )) %>%
+  mutate(friction_costs = case_when(
+  name == "infections" ~ (gdppc/365.25) * infections_duration * averted,
+  name == "hospitalisations" ~ (gdppc/365.25) * hospitalisations_duration * averted,
+  name == "deaths" ~ (gdppc/365.25) * friction_period * averted
+  )) %>%
   group_by(replicate) %>%
   summarise(friction_costs = sum(friction_costs, na.rm = TRUE)) %>%
   summarise(across(friction_costs,
@@ -502,3 +508,4 @@ roi_discwelfarist_psa <- vsly_avertedtotals_psa %>%
 # save results
 roi_discwelfarist_psa
 write.csv(roi_discwelfarist_psa, "analysis/tables/roi_discwelfarist_psa.csv")
+
