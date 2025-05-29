@@ -403,6 +403,8 @@ write.csv(sum_discmonqaly_psa, "analysis/tables/sum_discmonqaly_psa.csv")
 
 # friction costs
 friction_costs <- readRDS("analysis/data/derived/friction_costs.rds")
+infections_duration <- 5
+hospitalisations_duration <- 12
 
 friction_costs_psa <- friction_costs %>%
   left_join(sens_df, by = "replicate") %>%

@@ -23,17 +23,30 @@ for(i in seq_along(iso3cs)) {
 
   message(i)
   fit <- read_rds(paste0(url,iso3cs[i],".Rds"))
+  bs <- read_rds(paste0("https://github.com/mrc-ide/covid-vaccine-impact-orderly/raw/by_age/data/excess_mortality/counterfactual_data/Baseline_",iso3cs[i],".Rds"))
+  no <- read_rds(paste0("https://github.com/mrc-ide/covid-vaccine-impact-orderly/raw/by_age/data/excess_mortality/counterfactual_data/No%20Vaccines_",iso3cs[i],".Rds"))
+
 
   # Delta Immune Escape Impact
   vaccine_efficacy <- fit$replicate_parameters$ves
 
-  # ratios
-  irs <- res_all %>% filter(iso3c == iso3cs[i]) %>% group_by(replicate, iso3c) %>%
-    summarise(infections = sum(baseline[name == "infections"]),
-              hospitalisations = sum(baseline[name == "hospitalisations"]),
-              deaths = sum(baseline[name == "deaths"]),
-              ihr = hospitalisations/infections,
-              ifr = deaths/infections)
+  irs <- left_join(
+    bs %>%
+      filter(date >= as.Date(fit$interventions$date_vaccine_change[1])) %>%
+      pivot_longer(infections:hospitalisations) %>%
+      group_by(replicate, iso3c, name) %>%
+      summarise(baseline = sum(value)),
+    no %>%
+      filter(date >= as.Date(fit$interventions$date_vaccine_change[1])) %>%
+      pivot_longer(infections:hospitalisations) %>%
+      group_by(replicate, iso3c, name) %>%
+      summarise(novaccine = sum(value))
+  ) %>%
+    mutate(averted = novaccine - baseline) %>%
+    select(replicate, iso3c, name, averted) %>%
+    pivot_wider(names_from = name, values_from = averted) %>%
+    mutate(ihr = hospitalisations/infections,
+           ifr = deaths/infections)
 
   res[[i]] <- irs %>% left_join(
       data.frame(replicate = 1:100,
