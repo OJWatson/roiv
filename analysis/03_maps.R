@@ -254,7 +254,6 @@ undiscwelf_plot <- undiscwelf_plot + theme(legend.position = "bottom")
 discounted_plot <- (disc_exwelfarist_plot / discwelf_plot) +
   plot_layout(tag_level = "new") +  # Remove guides = "collect" to keep individual legends
   plot_annotation(
-    title = "Comparison of discounted monetized benefits",
     tag_levels = 'A'
   )
 
@@ -262,7 +261,6 @@ discounted_plot <- (disc_exwelfarist_plot / discwelf_plot) +
 undiscounted_plot <- (undisc_exwelfarist_plot / undiscwelf_plot) +
   plot_layout(tag_level = "new") +  # Remove guides = "collect" to keep individual legends
   plot_annotation(
-    title = "Comparison of undiscounted monetized benefits",
     tag_levels = 'A'
   )
 

@@ -258,7 +258,7 @@ prcc_gg_undiscmonqalys <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PR
   theme(legend.position = "none", plot.background = element_rect(fill = "white", color = "white"))
 
 print(prcc_gg_undiscmonqalys)
-save_figs(fig = prcc_gg_undiscmonqalys, name = "prcc_tornado_plot_undiscmonqalys", width = 8, height = 8)
+save_figs(fig = prcc_gg_undiscmonqalys, name = "prcc_tornado_plot_undiscmonqalys", width = 8, height = 6)
 
 # DISCOUNTED MONETIZED QALYS #
 inputs <- psa_data %>%
@@ -300,7 +300,7 @@ prcc_gg_discmonqalys <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC
   theme(legend.position = "none", plot.background = element_rect(fill = "white", color = "white"))
 
 print(prcc_gg_discmonqalys)
-save_figs(fig = prcc_gg_discmonqalys, name = "prcc_tornado_plot_discmonqalys", width = 8, height = 8)
+save_figs(fig = prcc_gg_discmonqalys, name = "prcc_tornado_plot_discmonqalys", width = 8, height = 6)
 
 # FRICTION COSTS #
 inputs <- psa_data %>%
@@ -377,19 +377,19 @@ prcc_discounted_plot <- wrap_plots(
 
 # Display the combined plot
 prcc_discounted_plot
-save_figs(fig = prcc_discounted_plot, name = "prcc_discounted_plot", width = 5, height = 15)
+save_figs(fig = prcc_discounted_plot, name = "prcc_discounted_plot", width = 5, height = 28)
 
 # Combine the plots with titles - Undiscounted
 
 prcc_undiscounted_plot <- wrap_plots(prcc_gg_unvsly / prcc_gg_undiscmonqalys,
-                                     ncol = 1,
-                                     heights = c(1, 1, 0.5)  # Adjust height of the last row
+  ncol = 1,
+  heights = c(1, 1, 0.5)  # Adjust height of the last row
 ) +
   plot_annotation(tag_levels = 'A')
 
 # Display the combined plot
 prcc_undiscounted_plot
-save_figs(fig = prcc_undiscounted_plot, name = "prcc_undiscounted_plot", width = 5, height = 15)
+save_figs(fig = prcc_undiscounted_plot, name = "prcc_undiscounted_plot", width = 5, height = 28)
 
 
 
@@ -488,3 +488,5 @@ prcc_combined_plot <- ggplot(prcc_combined_df, aes(x = Parameter, y = PRCC, fill
 # Display and save the combined plot
 print(prcc_combined_plot)
 save_figs(fig = prcc_combined_plot, name = "prcc_combined_plot", width = 8, height = 9)
+
+
