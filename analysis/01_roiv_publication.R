@@ -752,7 +752,7 @@ write.csv(vsly_avertedtotals, "analysis/tables/vsly_avertedtotals.csv")
 # get population-weighted GDP per income group
 gdp <- vaccine_iso3c %>%
   left_join(read_csv("analysis/data/raw/GDP_iso3c.csv"), by = "iso3c") %>%
-  select(iso3c, income_group, gdp)
+  select(iso3c, income_group, gdp, Ng)
 
 
 # get gdp sums per income group
@@ -994,12 +994,12 @@ write.csv(vsly_pp_world, "analysis/tables/vsly_pp_world.csv")
 # make gdppc data frame
 
 gdppc <- vaccine_iso3c %>%
-  left_join(read_csv("analysis/data/raw/gdppc_2021_good.csv"), by = "iso3c") %>%
-  select(iso3c, income_group, gdppc)
+  left_join(read_csv("analysis/data/raw/GDP_iso3c.csv"), by = "iso3c") %>%
+  mutate(gdppc = gdp/Ng)
 
 gdppc_income <- gdppc %>%
   group_by(income_group) %>%
-  summarise(gdppc = mean(gdppc, na.rm = TRUE))
+  summarise(gdppc = sum(gdp, na.rm = TRUE)/sum(Ng, na.rm = TRUE))
 
 # undiscounted - income
 undiscvsly_pp_gdppc_income <- vsly %>%
@@ -1008,7 +1008,7 @@ undiscvsly_pp_gdppc_income <- vsly %>%
   left_join(vaccine_iso3c %>% group_by(income_group) %>% summarise(vaccines = sum(vaccines, na.rm = TRUE)),
             by = "income_group") %>%
   left_join(gdppc %>% group_by(income_group) %>%
-              summarise(gdppc = mean(gdppc, na.rm = TRUE)),
+              summarise(gdppc = sum(gdp, na.rm = TRUE)/sum(Ng, na.rm = TRUE)),
             by = "income_group") %>%
   mutate(undiscvsly_pp_gdppc = ((undiscvsly_total / vaccines) / gdppc) * 100) %>%
   group_by(income_group) %>%
@@ -1055,7 +1055,7 @@ discvsly_pp_gdppc_income <- vsly %>%
   left_join(vaccine_iso3c %>% group_by(income_group) %>% summarise(vaccines = sum(vaccines, na.rm = TRUE)),
             by = "income_group") %>%
   left_join(gdppc %>% group_by(income_group) %>%
-              summarise(gdppc = mean(gdppc, na.rm = TRUE)),
+              summarise(gdppc = sum(gdp, na.rm = TRUE)/sum(Ng, na.rm = TRUE)),
             by = "income_group") %>%
   mutate(discvsly_pp_gdppc = ((discvsly_total / vaccines) / gdppc) * 100) %>%
   group_by(income_group) %>%
@@ -1569,6 +1569,9 @@ sum_undiscqaly_pp <- qaly %>%
 
 # our results table which we can then save in the tables directory
 sum_undiscqaly_pp
+
+
+
 write.csv(sum_undiscqaly_pp, "analysis/tables/sum_undiscqaly_pp.csv")
 
 
@@ -2155,7 +2158,7 @@ undiscmonqaly_pp_gdppc_income <- qaly %>%
   summarise(undiscmonqalys_total = sum(undiscmonqalys_averted, na.rm = TRUE)) %>%
   left_join(vaccine_iso3c %>% group_by(income_group) %>% summarise(vaccines = sum(vaccines, na.rm = TRUE)),
             by = "income_group") %>%
-  left_join(gdppc %>% group_by(income_group) %>% summarise(gdppc = mean(gdppc, na.rm = TRUE)), by = "income_group") %>%
+  left_join(gdppc %>% group_by(income_group) %>% summarise(gdppc = sum(gdp, na.rm = TRUE)/sum(Ng, na.rm = TRUE)), by = "income_group") %>%
   mutate(undiscmonqalys_pp_gdppc = ((undiscmonqalys_total / vaccines) / gdppc) * 100) %>%
   group_by(income_group) %>%
   summarise(
@@ -2215,7 +2218,7 @@ discmonqaly_pp_gdppc_income <- qaly %>%
   summarise(discmonqalys_total = sum(discmonqalys_averted, na.rm = TRUE)) %>%
   left_join(vaccine_iso3c %>% group_by(income_group) %>% summarise(vaccines = sum(vaccines, na.rm = TRUE)),
             by = "income_group") %>%
-  left_join(gdppc %>% group_by(income_group) %>% summarise(gdppc = mean(gdppc, na.rm = TRUE)), by = "income_group") %>%
+  left_join(gdppc %>% group_by(income_group) %>% summarise(gdppc = sum(gdp, na.rm = TRUE)/sum(Ng, na.rm = TRUE)), by = "income_group") %>%
   mutate(
     discmonqalys_pp_gdppc = ((discmonqalys_total / vaccines) / gdppc) * 100) %>%
   group_by(income_group) %>%
@@ -2246,6 +2249,8 @@ discmonqaly_pp_gdppc_iso3c <- qaly %>%
     name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
                         * median_wtp_threshold))) %>%
   group_by(iso3c, replicate) %>%
+  # TODO: Here you are incorrect to sum over the gdppc as this is repeated for each age group
+  # and name so you are multiplying gdppc by 51 here (17 age groups and 3 name)
   summarise(
     discmonqalys_total = sum(discmonqalys_averted, na.rm = TRUE),
     gdppc = sum(gdppc, na.rm = TRUE)) %>%
