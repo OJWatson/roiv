@@ -15,6 +15,11 @@ sens_df <- readRDS("analysis/data/derived/psa_sens_df.rds")
 vsly <- readRDS("analysis/data/derived/vsly.rds")
 gnipc_usa <- read_csv("analysis/data/raw/gnipc_good.csv") %>% filter(iso3c == "USA") %>% pull(gnipc)
 epi_psa <- readRDS("analysis/data/derived/epi_psa.rds")
+qaly <- readRDS("analysis/data/derived/qaly.rds")
+friction_costs <- readRDS("analysis/data/derived/friction_costs.rds")
+infections_duration <- 5
+hospitalisations_duration <- 12
+
 
 # You need to actually recalcuate these so that your sampled values are actually being used in the calculations
 vsly_psa <- vsly %>%
@@ -153,20 +158,22 @@ prcc_gg_vsly <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0)) +
   geom_hline(yintercept = 0, linetype = "solid") +
   geom_bar(stat = "identity", width = 0.7) +
   # Add asterisks for significant P values
-  geom_text(data = subset(prcc_df, P_Value < 0.05),
-            aes(label = "*", x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
-            vjust = 0.75,
-            #hjust = ifelse(subset(prcc_df, P_Value < 0.05)$PRCC, 1.2, -0.2),     # Nudges asterisk left/right
-            size = 8) +
+  geom_text(data = prcc_df,
+            aes(label = paste("p =",signif(P_Value, 3)), x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
+            vjust = 0.5,
+            hjust = ifelse(prcc_df$PRCC<0, 0.7, 0.2),     # Nudges asterisk left/right
+            size = 3) +
   coord_flip() +  # Flip for a horizontal tornado plot
   scale_fill_manual(values = c("#dd5129", "#0f7ba2"), labels = c("Negative", "Positive")) +
+  scale_y_continuous(limits = range(prcc_df$PRCC)*1.6) +
   scale_x_discrete(labels = labels) +
   labs(title = "Tornado Plot of PRCC Values",
        x = "Parameter",
        y = "Partial Rank Correlation Coefficient (PRCC)") +
   theme_minimal(base_family = "Helvetica", base_size = 10) +
   theme(legend.position = "none", plot.background = element_rect(fill = "white", color = "white"))
-save_figs(fig = prcc_gg_vsly, name = "prcc_tornado_plot_vsly", width = 8, height = 6)
+prcc_gg_vsly
+save_figs(fig = prcc_gg_vsly, name = "alt_prcc_tornado_plot_vsly", width = 10, height = 4)
 
 print(prcc_gg_vsly)
 save_figs(fig = prcc_gg_vsly, name = "prcc_tornado_plot_vsly", width = 8, height = 6)
@@ -201,13 +208,14 @@ prcc_gg_unvsly <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0))
   geom_hline(yintercept = 0, linetype = "solid") +
   geom_bar(stat = "identity", width = 0.7) +
   # Add asterisks for significant P values
-  geom_text(data = subset(prcc_df, P_Value < 0.05),
-            aes(label = "*", x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
-            vjust = 0.75,
-            #hjust = ifelse(subset(prcc_df, P_Value < 0.05)$PRCC, 1.2, -0.2),     # Nudges asterisk left/right
-            size = 8) +
+  geom_text(data = prcc_df,
+            aes(label = paste("p =",signif(P_Value, 3)), x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
+            vjust = 0.5,
+            hjust = ifelse(prcc_df$PRCC<0, 0.7, 0.2),     # Nudges asterisk left/right
+            size = 3) +
   coord_flip() +  # Flip for a horizontal tornado plot
   scale_fill_manual(values = c("#dd5129", "#0f7ba2"), labels = c("Negative", "Positive")) +
+  scale_y_continuous(limits = range(prcc_df$PRCC)*1.6) +
   scale_x_discrete(labels = labels) +
   labs(title = "Tornado Plot of PRCC Values",
        x = "Parameter",
@@ -243,13 +251,14 @@ prcc_gg_undiscmonqalys <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PR
   geom_hline(yintercept = 0, linetype = "solid") +
   geom_bar(stat = "identity", width = 0.7) +
   # Add asterisks for significant P values
-  geom_text(data = subset(prcc_df, P_Value < 0.05),
-            aes(label = "*", x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
-            vjust = 0.75,
-            #hjust = ifelse(subset(prcc_df, P_Value < 0.05)$PRCC, 1.2, -0.2),     # Nudges asterisk left/right
-            size = 8) +
+  geom_text(data = prcc_df,
+            aes(label = paste("p =",signif(P_Value, 3)), x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
+            vjust = 0.5,
+            hjust = ifelse(prcc_df$PRCC<0, 0.7, 0.2),     # Nudges asterisk left/right
+            size = 3) +
   coord_flip() +  # Flip for a horizontal tornado plot
   scale_fill_manual(values = c("#dd5129", "#0f7ba2"), labels = c("Negative", "Positive")) +
+  scale_y_continuous(limits = range(prcc_df$PRCC)*1.6) +
   scale_x_discrete(labels = labels) +
   labs(title = "Tornado Plot of PRCC Values",
        x = "Parameter",
@@ -285,13 +294,14 @@ prcc_gg_discmonqalys <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC
   geom_hline(yintercept = 0, linetype = "solid") +
   geom_bar(stat = "identity", width = 0.7) +
   # Add asterisks for significant P values
-  geom_text(data = subset(prcc_df, P_Value < 0.05),
-            aes(label = "*", x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
-            vjust = 0.75,
-            #hjust = ifelse(subset(prcc_df, P_Value < 0.05)$PRCC, 1.2, -0.2),     # Nudges asterisk left/right
-            size = 8) +
+  geom_text(data = prcc_df,
+            aes(label = paste("p =",signif(P_Value, 3)), x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
+            vjust = 0.5,
+            hjust = ifelse(prcc_df$PRCC<0, 0.7, 0.2),     # Nudges asterisk left/right
+            size = 3) +
   coord_flip() +  # Flip for a horizontal tornado plot
   scale_fill_manual(values = c("#dd5129", "#0f7ba2"), labels = c("Negative", "Positive")) +
+  scale_y_continuous(limits = range(prcc_df$PRCC)*1.6) +
   scale_x_discrete(labels = labels) +
   labs(title = "Tornado Plot of PRCC Values",
        x = "Parameter",
@@ -325,13 +335,14 @@ prcc_gg_frictioncosts <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRC
   geom_hline(yintercept = 0, linetype = "solid") +
   geom_bar(stat = "identity", width = 0.7) +
   # Add asterisks for significant P values
-  geom_text(data = subset(prcc_df, P_Value < 0.05),
-            aes(label = "*", x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
-            vjust = 0.75,
-            #hjust = ifelse(subset(prcc_df, P_Value < 0.05)$PRCC, 1.2, -0.2),     # Nudges asterisk left/right
-            size = 8) +
+  geom_text(data = prcc_df,
+            aes(label = paste("p =",signif(P_Value, 3)), x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
+            vjust = 0.5,
+            hjust = ifelse(prcc_df$PRCC<0, 0.7, 0.2),     # Nudges asterisk left/right
+            size = 3) +
   coord_flip() +  # Flip for a horizontal tornado plot
   scale_fill_manual(values = c("#dd5129", "#0f7ba2"), labels = c("Negative", "Positive")) +
+  scale_y_continuous(limits = range(prcc_df$PRCC)*1.6) +
   scale_x_discrete(labels = labels) +
   labs(title = "Tornado Plot of PRCC Values",
        x = "Parameter",
