@@ -175,6 +175,7 @@ prcc_gg_vsly <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0)) +
 prcc_gg_vsly
 save_figs(fig = prcc_gg_vsly, name = "alt_prcc_tornado_plot_vsly", width = 10, height = 4)
 
+
 print(prcc_gg_vsly)
 save_figs(fig = prcc_gg_vsly, name = "prcc_tornado_plot_vsly", width = 8, height = 6)
 
