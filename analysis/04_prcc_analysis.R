@@ -12,9 +12,12 @@ library(patchwork)
 
 # Read in and format data
 sens_df <- readRDS("analysis/data/derived/psa_sens_df.rds")
+vsl <- readRDS("analysis/data/derived/vsl.rds")
+qaly <- readRDS("analysis/data/derived/qaly.rds")
 vsly <- readRDS("analysis/data/derived/vsly.rds")
 gnipc_usa <- read_csv("analysis/data/raw/gnipc_good.csv") %>% filter(iso3c == "USA") %>% pull(gnipc)
 epi_psa <- readRDS("analysis/data/derived/epi_psa.rds")
+friction_costs <- readRDS("analysis/data/derived/friction_costs.rds")
 
 # You need to actually recalcuate these so that your sampled values are actually being used in the calculations
 vsly_psa <- vsly %>%
@@ -32,6 +35,18 @@ vsly_replicate_summary <- vsly_psa %>%
   summarise(vsly_undisc_averted = sum(lg_averted * vly, na.rm = TRUE),
             vsly_disc_averted = sum(lghat_averted * vly_disc, na.rm = TRUE)) %>%
   ungroup()  # Remove replicate grouping to keep only one row per replicate
+
+# NEW: vsl
+vsl_psa <- vsl %>%
+  left_join(sens_df, by = "replicate") %>%  # Join based on replicate
+  mutate(vsl_usa = vsl_samples) %>%
+  group_by(iso3c, replicate) %>%
+  mutate(vsl = vsl_usa*(gnipc/gnipc_usa)^1)
+
+vsl_replicate_summary <- vsl_psa %>%
+  group_by(replicate, iso3c) %>%
+  summarise(vsl_averted = sum(vsl*averted, na.rm = TRUE)) %>%
+  ungroup()
 
 undiscmonqaly_replicate_summary <- qaly %>%
   left_join(sens_df, by = "replicate") %>%
@@ -98,8 +113,8 @@ friction_costs_replicate_summary <- friction_costs %>%
   summarise(friction_costs = sum(friction_costs, na.rm = TRUE)) %>%
   ungroup()
 
-# Step 2: Merge with `sens_df` to get input parameters for PRCC
-psa_data <- vsly_replicate_summary %>%
+# Step 2: Merge with `sens_df` to get input parameters for PRCC -- NEW: for VSL, not VSLY
+psa_data <- vsl_replicate_summary %>%
   left_join(sens_df, by = "replicate") %>%
   left_join(undiscmonqaly_replicate_summary, by = "replicate") %>%
   left_join(discmonqaly_replicate_summary, by = "replicate") %>%
@@ -114,7 +129,7 @@ str(psa_data)
 inputs <- psa_data %>%
   select(vsl_samples,
          deaths, vaccine_efficacy, infections, hospitalisations)
-output <- psa_data$vsly_disc_averted  # Target variable
+output <- psa_data$vsl_averted  # Target variable
 
 # Compute PRCC using epi.prcc()
 prcc_results <- epi.prcc(dat = cbind(inputs, output), sided.test = 2)
@@ -149,27 +164,28 @@ labels <- c(
 )
 
 # Create the tornado plot
-prcc_gg_vsly <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0)) +
+prcc_gg_vsl <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0)) +
   geom_hline(yintercept = 0, linetype = "solid") +
   geom_bar(stat = "identity", width = 0.7) +
   # Add asterisks for significant P values
-  geom_text(data = subset(prcc_df, P_Value < 0.05),
-            aes(label = "*", x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
-            vjust = 0.75,
-            #hjust = ifelse(subset(prcc_df, P_Value < 0.05)$PRCC, 1.2, -0.2),     # Nudges asterisk left/right
-            size = 8) +
+  geom_text(data = prcc_df,
+            aes(label = paste("p =",signif(P_Value, 3)), x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
+            vjust = 0.5,
+            hjust = ifelse(prcc_df$PRCC<0, 0.7, 0.2),     # Nudges asterisk left/right
+            size = 3) +
   coord_flip() +  # Flip for a horizontal tornado plot
   scale_fill_manual(values = c("#dd5129", "#0f7ba2"), labels = c("Negative", "Positive")) +
+  scale_y_continuous(limits = range(prcc_df$PRCC)*1.6) +
   scale_x_discrete(labels = labels) +
   labs(title = "Tornado Plot of PRCC Values",
        x = "Parameter",
        y = "Partial Rank Correlation Coefficient (PRCC)") +
   theme_minimal(base_family = "Helvetica", base_size = 10) +
   theme(legend.position = "none", plot.background = element_rect(fill = "white", color = "white"))
-save_figs(fig = prcc_gg_vsly, name = "prcc_tornado_plot_vsly", width = 8, height = 6)
+save_figs(fig = prcc_gg_vsl, name = "prcc_tornado_plot_vsl", width = 10, height = 4)
 
-print(prcc_gg_vsly)
-save_figs(fig = prcc_gg_vsly, name = "prcc_tornado_plot_vsly", width = 8, height = 6)
+print(prcc_gg_vsl)
+save_figs(fig = prcc_gg_vsl, name = "prcc_tornado_plot_vsl", width = 10, height = 4)
 
 ####################################
 
@@ -201,13 +217,14 @@ prcc_gg_unvsly <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0))
   geom_hline(yintercept = 0, linetype = "solid") +
   geom_bar(stat = "identity", width = 0.7) +
   # Add asterisks for significant P values
-  geom_text(data = subset(prcc_df, P_Value < 0.05),
-            aes(label = "*", x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
-            vjust = 0.75,
-            #hjust = ifelse(subset(prcc_df, P_Value < 0.05)$PRCC, 1.2, -0.2),     # Nudges asterisk left/right
-            size = 8) +
+  geom_text(data = prcc_df,
+            aes(label = paste("p =",signif(P_Value, 3)), x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
+            vjust = 0.5,
+            hjust = ifelse(prcc_df$PRCC<0, 0.7, 0.2),     # Nudges asterisk left/right
+            size = 3) +
   coord_flip() +  # Flip for a horizontal tornado plot
   scale_fill_manual(values = c("#dd5129", "#0f7ba2"), labels = c("Negative", "Positive")) +
+  scale_y_continuous(limits = range(prcc_df$PRCC)*1.6) +
   scale_x_discrete(labels = labels) +
   labs(title = "Tornado Plot of PRCC Values",
        x = "Parameter",
@@ -216,7 +233,7 @@ prcc_gg_unvsly <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0))
   theme(legend.position = "none", plot.background = element_rect(fill = "white", color = "white"))
 
 print(prcc_gg_unvsly)
-save_figs(fig = prcc_gg_unvsly, name = "prcc_tornado_plot_unvsly", width = 8, height = 6)
+save_figs(fig = prcc_gg_unvsly, name = "prcc_tornado_plot_unvsly", width = 10, height = 4)
 
 ## UNDISCOUNTED MONETIZED QALYS ##
 inputs <- psa_data %>%
@@ -243,13 +260,14 @@ prcc_gg_undiscmonqalys <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PR
   geom_hline(yintercept = 0, linetype = "solid") +
   geom_bar(stat = "identity", width = 0.7) +
   # Add asterisks for significant P values
-  geom_text(data = subset(prcc_df, P_Value < 0.05),
-            aes(label = "*", x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
-            vjust = 0.75,
-            #hjust = ifelse(subset(prcc_df, P_Value < 0.05)$PRCC, 1.2, -0.2),     # Nudges asterisk left/right
-            size = 8) +
+  geom_text(data = prcc_df,
+            aes(label = paste("p =",signif(P_Value, 3)), x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
+            vjust = 0.5,
+            hjust = ifelse(prcc_df$PRCC<0, 0.7, 0.2),     # Nudges asterisk left/right
+            size = 3) +
   coord_flip() +  # Flip for a horizontal tornado plot
   scale_fill_manual(values = c("#dd5129", "#0f7ba2"), labels = c("Negative", "Positive")) +
+  scale_y_continuous(limits = range(prcc_df$PRCC)*1.6) +
   scale_x_discrete(labels = labels) +
   labs(title = "Tornado Plot of PRCC Values",
        x = "Parameter",
@@ -285,13 +303,14 @@ prcc_gg_discmonqalys <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC
   geom_hline(yintercept = 0, linetype = "solid") +
   geom_bar(stat = "identity", width = 0.7) +
   # Add asterisks for significant P values
-  geom_text(data = subset(prcc_df, P_Value < 0.05),
-            aes(label = "*", x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
-            vjust = 0.75,
-            #hjust = ifelse(subset(prcc_df, P_Value < 0.05)$PRCC, 1.2, -0.2),     # Nudges asterisk left/right
-            size = 8) +
+  geom_text(data = prcc_df,
+            aes(label = paste("p =",signif(P_Value, 3)), x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
+            vjust = 0.5,
+            hjust = ifelse(prcc_df$PRCC<0, 0.7, 0.2),     # Nudges asterisk left/right
+            size = 3) +
   coord_flip() +  # Flip for a horizontal tornado plot
   scale_fill_manual(values = c("#dd5129", "#0f7ba2"), labels = c("Negative", "Positive")) +
+  scale_y_continuous(limits = range(prcc_df$PRCC)*1.6) +
   scale_x_discrete(labels = labels) +
   labs(title = "Tornado Plot of PRCC Values",
        x = "Parameter",
@@ -325,13 +344,14 @@ prcc_gg_frictioncosts <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRC
   geom_hline(yintercept = 0, linetype = "solid") +
   geom_bar(stat = "identity", width = 0.7) +
   # Add asterisks for significant P values
-  geom_text(data = subset(prcc_df, P_Value < 0.05),
-            aes(label = "*", x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
-            vjust = 0.75,
-            #hjust = ifelse(subset(prcc_df, P_Value < 0.05)$PRCC, 1.2, -0.2),     # Nudges asterisk left/right
-            size = 8) +
+  geom_text(data = prcc_df,
+            aes(label = paste("p =",signif(P_Value, 3)), x = Parameter, y = PRCC + 0.02 * sign(PRCC)),  # Adjust for direction
+            vjust = 0.5,
+            hjust = ifelse(prcc_df$PRCC<0, 0.7, 0.2),     # Nudges asterisk left/right
+            size = 3) +
   coord_flip() +  # Flip for a horizontal tornado plot
   scale_fill_manual(values = c("#dd5129", "#0f7ba2"), labels = c("Negative", "Positive")) +
+  scale_y_continuous(limits = range(prcc_df$PRCC)*1.6) +
   scale_x_discrete(labels = labels) +
   labs(title = "Tornado Plot of PRCC Values",
        x = "Parameter",
@@ -345,16 +365,20 @@ save_figs(fig = prcc_gg_frictioncosts, name = "prcc_tornado_plot_frictioncosts",
 
 #####
 # Add titles to each individual plot
+#old
 prcc_gg_vsly <- prcc_gg_vsly + labs(title = "Discounted VSLYs")
 prcc_gg_unvsly <- prcc_gg_unvsly + labs(title = "Undiscounted VSLYs")
+
+#new
+prcc_gg_vsl <- prcc_gg_vsl + labs(title = "VSLs")
 prcc_gg_undiscmonqalys <- prcc_gg_undiscmonqalys + labs(title = "Undiscounted Monetized QALYs")
 prcc_gg_discmonqalys <- prcc_gg_discmonqalys + labs(title = "Discounted Monetized QALYs Averted")
 prcc_gg_frictioncosts <- prcc_gg_frictioncosts + labs(title = "Friction Costs")
 
 # Combine the plots with titles
-
+#NEW: no VSLYs, VSL instead
 prcc_combined_plot <- wrap_plots(
-  prcc_gg_vsly / prcc_gg_unvsly / prcc_gg_undiscmonqalys /
+  prcc_gg_vsl / prcc_gg_undiscmonqalys /
     prcc_gg_discmonqalys / prcc_gg_frictioncosts,
   ncol = 1,
   heights = c(1, 1, 0.5)  # Adjust height of the last row
@@ -368,7 +392,7 @@ save_figs(fig = prcc_combined_plot, name = "prcc_combined_plot", width = 5, heig
 # Combine the plots with titles - discounted
 
 prcc_discounted_plot <- wrap_plots(
-  prcc_gg_vsly /
+  prcc_gg_vsl /
     prcc_gg_discmonqalys / prcc_gg_frictioncosts,
   ncol = 1,
   heights = c(1, 1, 0.5)  # Adjust height of the last row
@@ -381,7 +405,7 @@ save_figs(fig = prcc_discounted_plot, name = "prcc_discounted_plot", width = 5, 
 
 # Combine the plots with titles - Undiscounted
 
-prcc_undiscounted_plot <- wrap_plots(prcc_gg_unvsly / prcc_gg_undiscmonqalys,
+prcc_undiscounted_plot <- wrap_plots(prcc_gg_vsl / prcc_gg_undiscmonqalys,
                                      ncol = 1,
                                      heights = c(1, 1, 0.5)  # Adjust height of the last row
 ) +

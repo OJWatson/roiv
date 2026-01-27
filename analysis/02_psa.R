@@ -288,6 +288,40 @@ saveRDS(sens_df, "analysis/data/derived/psa_sens_df.rds")
 
 # assign the sampling values to the analysis and using it for calculations
 
+# NEW: VSL
+
+vsl <- readRDS("analysis/data/derived/vsl.rds")
+gnipc_usa <- read_csv("analysis/data/raw/GNIPC_2021.csv") %>% filter(iso3c == "USA") %>% pull(gnipc)
+
+vsl_psa <- vsl %>%
+  left_join(sens_df, by = "replicate") %>%  # Join based on replicate
+  mutate(vsl_usa = vsl_samples) %>%
+  group_by(iso3c, replicate) %>%
+  mutate(vsl = vsl_usa*(gnipc/gnipc_usa)^1)
+
+
+# add uncertainty functions
+lf <- function(x){quantile(x, 0.025, na.rm=TRUE)}
+mf <- function(x){quantile(x, 0.5, na.rm=TRUE)}
+hf <- function(x){quantile(x, 0.975, na.rm=TRUE)}
+
+# getting total monetary value of vsly per income group (population-weighted)
+vsl_avertedtotals_psa <- vsl_psa %>%
+  group_by(replicate) %>%
+  summarise(vsl_averted = sum((averted*vsl), na.rm = TRUE)) %>%
+  summarise(
+    across(vsl_averted,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+vsl_avertedtotals_psa
+write.csv(vsl_avertedtotals_psa, "analysis/tables/vsl_avertedtotals_psa.csv")
+
+
 # vsly
 
 vsly <- readRDS("analysis/data/derived/vsly.rds")
@@ -485,9 +519,41 @@ roi_discextrawelfarist_psa <- extrawelfarist_discsum_psa %>%
 roi_discextrawelfarist_psa
 write.csv(roi_discextrawelfarist_psa, "analysis/tables/roi_discextrawelfarist_psa.csv")
 
+# NEW: welfarist including VSL, productivity and healthcare
+
+new_welfarist_sum_psa <- bind_cols(vsl_avertedtotals_psa, friction_costs_psa, sum_hc_costs) %>%
+  summarise(
+    total_low = vsl_averted_low + friction_costs_low + hc_costs_total_low,
+    total_med = vsl_averted_med + friction_costs_med + hc_costs_total_med,
+    total_high = vsl_averted_high + friction_costs_high + hc_costs_total_high
+  )
+
+# save results
+new_welfarist_sum_psa
+write.csv(new_welfarist_sum_psa, "analysis/tables/new_welfarist_sum_psa.csv")
+
+new_roi_welfarist_psa <- new_welfarist_sum_psa %>%
+  mutate(roi_low = ((total_low - (vaccine_costs))/(vaccine_costs)),
+         roi_med = ((total_med - (vaccine_costs))/(vaccine_costs)),
+         roi_high = ((total_high - (vaccine_costs))/(vaccine_costs))) %>%
+  select(roi_low, roi_med, roi_high)
+
+# save results
+new_roi_welfarist_psa
+write.csv(new_roi_welfarist_psa, "analysis/tables/new_roi_welfarist_psa.csv")
+
+# welfairst - just VSLs
+new_roi_vsl_psa <- vsl_avertedtotals_psa %>%
+  mutate(roi_low = ((vsl_averted_low - (vaccine_costs))/(vaccine_costs)),
+         roi_med = ((vsl_averted_med - (vaccine_costs))/(vaccine_costs)),
+         roi_high = ((vsl_averted_high - (vaccine_costs))/(vaccine_costs))) %>%
+  select(roi_low, roi_med, roi_high)
+
+# save results
+new_roi_vsl_psa
+write.csv(new_roi_vsl_psa, "analysis/tables/new_roi_vsl_psa.csv")
+
 # welfarist - VSLYs
-
-
 # calculate undiscounted welfarist roi
 roi_undiscwelfarist_psa <- vsly_avertedtotals_psa %>%
   mutate(roi_low = ((vsly_undisc_averted_low - (vaccine_costs))/(vaccine_costs)),

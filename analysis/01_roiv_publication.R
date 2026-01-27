@@ -379,7 +379,6 @@ lghat_sum
 write.csv(lghat_sum, "analysis/tables/lghat_sum.csv")
 
 # discounted life years per person globally
-
 lghat_pp_world <- res_full %>%
   filter(name == "deaths") %>%
   # here we group at income, replicate
@@ -397,9 +396,6 @@ lghat_pp_world <- res_full %>%
 # our results table which we can then save in the tables directory
 lghat_pp_world
 write.csv(lghat_pp_world, "analysis/tables/lghat_pp_world.csv")
-
-
-
 
 ### HOSPITALISATIONS
 
@@ -639,7 +635,7 @@ inf_pp_income
 write.csv(inf_pp_income, "analysis/tables/inf_pp_income")
 
 # *****************
-# VSLY calculations
+# VSL and VSLY calculations
 # *****************
 
 # loading and prepping data frame
@@ -676,6 +672,211 @@ vsl_usa <- vsl_usa %>%
 # extract USA VSL value (pulling value from data frame from column "mean" and row 1)
 mean_vsl_usa <- vsl_usa$"mean"[1]
 
+## NEW: VSL calculation
+vsl <- res_full %>%
+  filter(name == "deaths")
+
+vsl <- vsl %>%
+  group_by(iso3c, replicate) %>%
+  mutate(vsl = mean_vsl_usa*(gnipc/gnipc_usa)^1)
+
+saveRDS(vsl, "analysis/data/derived/vsl.rds")
+
+# getting total monetary value of vsl per income group (population-weighted)
+vsl_avertedtotal_income <- vsl %>%
+  group_by(income_group, replicate) %>%
+  summarise(vsl_averted = sum((vsl*averted), na.rm = TRUE))%>%
+  group_by(income_group) %>%
+  summarise(
+    across(vsl_averted,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+
+# our results table which we can then save in the tables directory
+vsl_avertedtotal_income
+write.csv(vsl_avertedtotal_income, "analysis/tables/vsl_avertedtotal_income.csv")
+
+# vsl total worldwide
+vsl_avertedtotal <- vsl %>%
+  group_by(replicate) %>%
+  summarise(vsl_averted = sum((vsl*averted), na.rm = TRUE))%>%
+  summarise(
+    across(vsl_averted,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+
+# our results table which we can then save in the tables directory
+vsl_avertedtotal
+write.csv(vsl_avertedtotal, "analysis/tables/vsl_avertedtotal.csv")
+
+saveRDS(vsl_avertedtotal, "analysis/data/derived/vsl_avertedtotal.rds")
+
+# get population-weighted GDP per income group
+gdp <- vaccine_iso3c %>%
+  left_join(read_csv("analysis/data/raw/GDP_iso3c.csv"), by = "iso3c") %>%
+  select(iso3c, income_group, gdp, Ng)
+
+
+# get gdp sums per income group
+gdp_income <- gdp %>%
+  group_by(income_group) %>%
+  summarise(gdp = sum(gdp, na.rm = TRUE))
+print(gdp_income)
+
+gdp_world <- gdp %>%
+  summarise(gdp = sum(gdp, na.rm = TRUE))
+print(gdp_world)
+
+# our results table which we can then save in the tables directory
+gdp_income
+write.csv(gdp_income, "analysis/tables/gdp_income.csv")
+saveRDS(gdp_income, "analysis/data/derived/gdp_income.rds")
+
+# vsl in terms of percentage of gdp for income groups
+# undiscounted
+vsl_pgdp_income <- vsl %>%
+  group_by(income_group, replicate) %>%
+  summarise(vsl_avertedtotal = sum((vsl*averted), na.rm = TRUE)) %>%
+  left_join(gdp %>% group_by(income_group) %>% summarise(gdp = sum(gdp, na.rm = TRUE))) %>% #
+  mutate(vsl_pgdp = (vsl_avertedtotal/gdp) * 100) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(vsl_pgdp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+vsl_pgdp_income
+write.csv(vsl_pgdp_income, "analysis/tables/vsl_pgdp_income.csv")
+
+## get VSL in terms of pp vaccinated
+# vsl gained pp vaccinated per income group
+vsl_pp_income <- vsl %>%
+  group_by(income_group, replicate) %>% # (step 1)
+  summarise(vsl_total = sum((vsl*averted),na.rm=TRUE)) %>% # (step 1)
+  left_join(vaccine_iso3c %>% group_by(income_group) %>% summarise(vaccines = sum(vaccines, na.rm = TRUE))) %>% # (step 2)
+  mutate(vsl_pp = vsl_total/vaccines) %>%  # (step 3)
+  group_by(income_group) %>%
+  summarise(
+    across(vsl_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+vsl_pp_income
+write.csv(vsl_pp_income, "analysis/tables/vsl_pp_income.csv")
+
+# now get per person vaccinated as a % of gdp per capita for income groups
+# make gdppc data frame
+gdppc <- vaccine_iso3c %>%
+  left_join(read_csv("analysis/data/raw/GDP_iso3c.csv"), by = "iso3c") %>%
+  mutate(gdppc = gdp/Ng)
+
+gdppc_income <- gdppc %>%
+  group_by(income_group) %>%
+  summarise(gdppc = sum(gdp, na.rm = TRUE)/sum(Ng, na.rm = TRUE))
+
+# do vsl per person as percentage of GDPpc
+vsl_pp_gdppc_income <- vsl %>%
+  group_by(income_group, replicate) %>%
+  summarise(vsl_averted = sum(vsl*averted, na.rm = TRUE)) %>%
+  left_join(vaccine_iso3c %>% group_by(income_group) %>% summarise(vaccines = sum(vaccines, na.rm = TRUE)),
+            by = "income_group") %>%
+  left_join(gdppc %>% group_by(income_group) %>%
+              summarise(gdppc = sum(gdp, na.rm = TRUE)/sum(Ng, na.rm = TRUE)),
+            by = "income_group") %>%
+  mutate(vsl_pp_gdppc = ((vsl_averted / vaccines) / gdppc) * 100) %>%
+  group_by(income_group) %>%
+  summarise(
+    across(vsl_pp_gdppc,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+vsl_pp_gdppc_income
+write.csv(vsl_pp_gdppc_income, "analysis/tables/vsl_pp_gdppc_income.csv")
+
+
+# totals worldwide per person vaccinated
+vsl_pp_world <- vsl %>%
+  group_by(replicate) %>%
+  summarise(vsl_averted = sum((vsl*averted), na.rm = TRUE)) %>%
+  mutate(vsl_pp = vsl_averted / total_vaccines) %>%
+  summarise(
+    across(vsl_pp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+
+# our results table which we can then save in the tables directory
+vsl_pp_world
+write.csv(vsl_pp_world, "analysis/tables/vsl_pp_world.csv")
+
+# totals worldwide per person vaccinated as percentage of GDP per capita
+# get world gdp per capita
+gdppc_world <- gdp %>%
+  left_join(squire::population %>% group_by(iso3c) %>% summarise(Ng = sum(n)))
+
+total_gdp <- sum(gdppc_world$gdp, na.rm = TRUE)
+total_population <- sum(gdppc_world$Ng, na.rm = TRUE)
+world_gdppc <- total_gdp / total_population
+
+# now get per person vaccinated as a % of gdp per capita
+vsl_pp_gdppc_world <- vsl %>%
+  group_by(replicate) %>%
+  summarise(vsl_averted = sum((vsl*averted), na.rm = TRUE)) %>%
+  mutate(vsl_averted = ((vsl_averted / total_vaccines) / world_gdppc) * 100) %>%
+  summarise(
+    across(vsl_averted,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+vsl_pp_gdppc_world
+write.csv(vsl_pp_gdppc_world, "analysis/tables/vsl_pp_gdppc_world.csv")
+
+# vsl pgdp world
+vsl_pgdp_world <- vsl %>%
+  group_by(replicate) %>%
+  summarise(vsl_averted = sum((vsl*averted), na.rm = TRUE)) %>%
+  mutate(vsl_pgdp = ((vsl_averted / total_gdp) * 100)) %>%
+  summarise(
+    across(vsl_pgdp,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+vsl_pgdp_world
+write.csv(vsl_pgdp_world, "analysis/tables/vsl_pgdp_world.csv")
+
+
+# VSLY
 # make a new data frame by filtering only deaths from the main data frame to calculate vslys
 # and add life expectancies
 vsly <- res_full %>%
@@ -730,27 +931,6 @@ vsly_avertedtotals <- vsly %>%
 # our results table which we can then save in the tables directory
 vsly_avertedtotals
 write.csv(vsly_avertedtotals, "analysis/tables/vsly_avertedtotals.csv")
-
-# get population-weighted GDP per income group
-gdp <- vaccine_iso3c %>%
-  left_join(read_csv("analysis/data/raw/GDP_iso3c.csv"), by = "iso3c") %>%
-  select(iso3c, income_group, gdp, Ng)
-
-
-# get gdp sums per income group
-gdp_income <- gdp %>%
-  group_by(income_group) %>%
-  summarise(gdp = sum(gdp, na.rm = TRUE))
-print(gdp_income)
-
-gdp_world <- gdp %>%
-  summarise(gdp = sum(gdp, na.rm = TRUE))
-print(gdp_world)
-
-# our results table which we can then save in the tables directory
-gdp_income
-write.csv(gdp_income, "analysis/tables/gdp_income.csv")
-saveRDS(gdp_income, "analysis/data/derived/gdp_income.rds")
 
 # vsly in terms of percentage of gdp for income groups
 # undiscounted
@@ -897,16 +1077,6 @@ write.csv(vsly_pp_world, "analysis/tables/vsly_pp_world.csv")
 
 ## in terms of per-person vaccinated as a percentage of GDP per capita
 
-# make gdppc data frame
-
-gdppc <- vaccine_iso3c %>%
-  left_join(read_csv("analysis/data/raw/GDP_iso3c.csv"), by = "iso3c") %>%
-  mutate(gdppc = gdp/Ng)
-
-gdppc_income <- gdppc %>%
-  group_by(income_group) %>%
-  summarise(gdppc = sum(gdp, na.rm = TRUE)/sum(Ng, na.rm = TRUE))
-
 # undiscounted - income
 undiscvsly_pp_gdppc_income <- vsly %>%
   group_by(income_group, replicate) %>%
@@ -955,14 +1125,6 @@ discvsly_pp_gdppc_income
 write.csv(discvsly_pp_gdppc_income, "analysis/tables/discvsly_pp_gdppc_income.csv")
 
 # totals worldwide per person vaccinated as percentage of GDP per capita
-# get world gdp per capita
-gdppc_world <- gdp %>%
-  left_join(squire::population %>% group_by(iso3c) %>% summarise(Ng = sum(n)))
-
-total_gdp <- sum(gdppc_world$gdp, na.rm = TRUE)
-total_population <- sum(gdppc_world$Ng, na.rm = TRUE)
-world_gdppc <- total_gdp / total_population
-
 # now get per person vaccinated as a % of gdp per capita
 vsly_pp_gdppc_world <- vsly %>%
   group_by(replicate) %>%
@@ -2510,9 +2672,71 @@ roi_discextrawelfarist <- extrawelfarist_discsum %>%
 roi_discextrawelfarist
 write.csv(roi_discextrawelfarist, "analysis/tables/roi_discextrawelfarist.csv")
 
+# NEW: welfarist main analysis - just VSLs
+vsl_avertedtotal
+
+roi_vsl <- vsl_avertedtotal %>%
+  mutate(roi_low = ((vsl_averted_low - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
+         roi_med = ((vsl_averted_med - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
+         roi_high = ((vsl_averted_high - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu))) %>%
+  select(roi_low, roi_med, roi_high)
+
+# save results
+roi_vsl
+write.csv(roi_vsl, "analysis/tables/roi_vsl.csv")
+
+
+# NEW: welfarist sensitivity analysis - VSLs + productivity costs + healthcare costs
+
+new_welfarist_sum <- bind_cols(vsl_avertedtotal, sum_friction, sum_hc_costs) %>%
+  summarise(
+    total_low = vsl_averted_low + friction_costs_total_low + hc_costs_total_low,
+    total_med = vsl_averted_med + friction_costs_total_med + hc_costs_total_med,
+    total_high = vsl_averted_high + friction_costs_total_high + hc_costs_total_high
+  )
+
+# save results
+new_welfarist_sum
+write.csv(new_welfarist_sum, "analysis/tables/new_welfarist_sum.csv")
+
+# NEW: Need total express in percentage of GDP for results section
+
+new_welfarist_sum_pgdp <- bind_cols(
+  vsl_avertedtotal,
+  sum_friction,
+  sum_hc_costs
+) %>%
+  summarise(
+    total_low  = vsl_averted_low  + friction_costs_total_low  + hc_costs_total_low,
+    total_med  = vsl_averted_med  + friction_costs_total_med  + hc_costs_total_med,
+    total_high = vsl_averted_high + friction_costs_total_high + hc_costs_total_high
+  ) %>%
+  mutate(
+    total_low_pgdp  = (total_low  / total_gdp) * 100,
+    total_med_pgdp  = (total_med  / total_gdp) * 100,
+    total_high_pgdp = (total_high / total_gdp) * 100
+  )
+
+# save results
+new_welfarist_sum_pgdp
+write.csv(new_welfarist_sum_pgdp, "analysis/tables/new_welfarist_sum_pgdp.csv")
+
+# NEW GOOD: ROI welfairst sensitivity analysis using VSL, productivity costs and healthcare costs
+
+new_roi_welfarist <- new_welfarist_sum %>%
+  mutate(roi_low = ((total_low - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
+         roi_med = ((total_med - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
+         roi_high = ((total_high - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu))) %>%
+  select(roi_low, roi_med, roi_high)
+
+# save results
+new_roi_welfarist
+write.csv(new_roi_welfarist, "analysis/tables/new_roi_welfarist.csv")
+
+
 # welfarist - VSLYs
 # sum undiscounted and discounted vsly
-
+## NEW: sensitivity analysis using undiscounted VSLY
 undisc_welfarist_sum <- vsly %>%
   group_by(replicate) %>%
   summarise(total = sum(lg_averted*vly, na.rm = TRUE)) %>%
@@ -2543,7 +2767,7 @@ disc_welfarist_sum <- vsly %>%
 disc_welfarist_sum
 write.csv(disc_welfarist_sum, "analysis/tables/disc_welfarist_sum.csv")
 
-# calculate undiscounted welfarist roi
+# calculate undiscounted welfarist roi --> NEW: sensitivity analysis using undiscounted VSLY
 roi_undiscwelfarist <- undisc_welfarist_sum %>%
   mutate(roi_low = ((total_low - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
          roi_med = ((total_med - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
@@ -2555,7 +2779,7 @@ roi_undiscwelfarist
 write.csv(roi_undiscwelfarist, "analysis/tables/roi_undiscwelfarist.csv")
 
 
-# calculate discounted extrawelfarist roi
+# OLD DO NOT USE: calculate discounted extrawelfarist roi
 roi_discwelfarist <- disc_welfarist_sum %>%
   mutate(roi_low = ((total_low - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
          roi_med = ((total_med - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
@@ -2565,4 +2789,27 @@ roi_discwelfarist <- disc_welfarist_sum %>%
 # save results
 roi_discwelfarist
 write.csv(roi_discwelfarist, "analysis/tables/roi_discwelfarist.csv")
+
+
+
+###### CODE TO GET PERCENTAGES OF EACH VALUE CONTRIBUTING TO WHOLE
+med_contribution <- bind_cols(vsl_avertedtotal, sum_friction, sum_hc_costs) %>%
+  summarise(
+    total_med = vsl_averted_med + friction_costs_total_med + hc_costs_total_med,
+
+    vsl_share_med = vsl_averted_med / total_med,
+    friction_share_med = friction_costs_total_med / total_med,
+    hc_share_med = hc_costs_total_med / total_med
+  )
+
+extrawelfarist_disc_med <- bind_cols(sum_discmonqaly, sum_friction, sum_hc_costs) %>%
+  summarise(
+    total_med = monqalys_averted_sum_med +
+      friction_costs_total_med +
+      hc_costs_total_med,
+
+    monqaly_share_med = monqalys_averted_sum_med / total_med,
+    friction_share_med = friction_costs_total_med / total_med,
+    hc_share_med = hc_costs_total_med / total_med
+  )
 

@@ -12,25 +12,18 @@ library(patchwork)
 
 # Read in and format data
 sens_df <- readRDS("analysis/data/derived/psa_sens_df.rds")
-vsly <- readRDS("analysis/data/derived/vsly.rds")
+vsl <- readRDS("analysis/data/derived/vsl.rds")
 gnipc_usa <- read_csv("analysis/data/raw/gnipc_good.csv") %>% filter(iso3c == "USA") %>% pull(gnipc)
 epi_psa <- readRDS("analysis/data/derived/epi_psa.rds")
 
 # You need to actually recalcuate these so that your sampled values are actually being used in the calculations
-vsly_psa <- vsly %>%
+vsl_psa <- vsl %>%
   left_join(sens_df, by = "replicate") %>%  # Join based on replicate
-  mutate(vsl_usa = vsl_samples) %>%
-  group_by(iso3c, replicate) %>%
-  mutate(vsl = vsl_usa*(gnipc/gnipc_usa)^1) %>%
-  mutate(w_nglg = sum(Ng*lg) / sum(Ng)) %>%
-  mutate(w_nglghat = sum(Ng * lghat) / sum(Ng)) %>%
-  mutate(vly = vsl / w_nglg) %>%
-  mutate(vly_disc = vsl / w_nglghat)
+  mutate(vsl_usa = vsl_samples)
 
-vsly_replicate_summary <- vsly_psa %>%
+vsl_replicate_summary <- vsl_psa %>%
   group_by(replicate, iso3c) %>%
-  summarise(vsly_undisc_averted = sum(lg_averted * vly, na.rm = TRUE),
-            vsly_disc_averted = sum(lghat_averted * vly_disc, na.rm = TRUE)) %>%
+  summarise(vsl_averted = sum(vsl*averted, na.rm = TRUE)) %>%
   ungroup()  # Remove replicate grouping to keep only one row per replicate
 
 undiscmonqaly_replicate_summary <- qaly %>%
@@ -99,7 +92,7 @@ friction_costs_replicate_summary <- friction_costs %>%
   ungroup()
 
 # Step 2: Merge with `sens_df` to get input parameters for PRCC
-psa_data <- vsly_replicate_summary %>%
+psa_data <- vsl_replicate_summary %>%
   left_join(sens_df, by = "replicate") %>%
   left_join(undiscmonqaly_replicate_summary, by = "replicate") %>%
   left_join(discmonqaly_replicate_summary, by = "replicate") %>%
@@ -114,7 +107,7 @@ str(psa_data)
 inputs <- psa_data %>%
   select(vsl_samples,
          deaths, vaccine_efficacy, infections, hospitalisations)
-output <- psa_data$vsly_disc_averted  # Target variable
+output <- psa_data$vsl_averted  # Target variable
 
 # Compute PRCC using epi.prcc()
 prcc_results <- epi.prcc(dat = cbind(inputs, output), sided.test = 2)
@@ -149,7 +142,7 @@ labels <- c(
 )
 
 # Create the tornado plot
-prcc_gg_vsly <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0)) +
+prcc_gg_vsl <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0)) +
   geom_hline(yintercept = 0, linetype = "solid") +
   geom_bar(stat = "identity", width = 0.7) +
   # Add asterisks for significant P values
@@ -166,10 +159,10 @@ prcc_gg_vsly <- ggplot(prcc_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0)) +
        y = "Partial Rank Correlation Coefficient (PRCC)") +
   theme_minimal(base_family = "Helvetica", base_size = 10) +
   theme(legend.position = "none", plot.background = element_rect(fill = "white", color = "white"))
-save_figs(fig = prcc_gg_vsly, name = "prcc_tornado_plot_vsly", width = 8, height = 6)
+save_figs(fig = prcc_gg_vsl, name = "prcc_tornado_plot_vsl", width = 8, height = 6)
 
-print(prcc_gg_vsly)
-save_figs(fig = prcc_gg_vsly, name = "prcc_tornado_plot_vsly", width = 8, height = 6)
+print(prcc_gg_vsl)
+save_figs(fig = prcc_gg_vsl, name = "prcc_tornado_plot_vsl", width = 8, height = 6)
 
 ####################################
 

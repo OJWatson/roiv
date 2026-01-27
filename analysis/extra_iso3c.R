@@ -1,3 +1,42 @@
+### VSL PER ISO3C RESULTS ###
+
+sum_vsl_iso3c <- vsl %>%
+  group_by(iso3c, replicate) %>%
+  summarise(vsl_total = sum(vsl*averted, na.rm = TRUE)) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(vsl_total,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+# our results table which we can then save in the tables directory
+sum_vsl_iso3c
+write.csv(sum_vsl_iso3c, "analysis/tables/sum_vsl_iso3c.csv")
+
+vsl_pp_gdppc_iso3c <- vsl %>%
+  group_by(iso3c, replicate) %>%
+  summarise(vsl_total = sum(vsl*averted, na.rm = TRUE)) %>%
+  left_join(vaccine_iso3c %>%
+              group_by(iso3c) %>%
+              summarise(vaccines = sum(vaccines, na.rm = TRUE)),
+            by = "iso3c") %>%
+  left_join(gdppc %>% group_by(iso3c) %>% summarise(gdppc = sum(gdppc, na.rm = TRUE)), by = "iso3c") %>%
+  mutate(vsl_pp_gdppc = ((vsl_total / vaccines) / gdppc) * 100) %>%
+  group_by(iso3c) %>%
+  summarise(
+    across(vsl_pp_gdppc,
+           list(
+             low = lf,
+             med = mf,
+             high = hf
+           )))
+
+# our results table which we can then save in the tables directory
+vsl_pp_gdppc_iso3c
+write.csv(vsl_pp_gdppc_iso3c, "analysis/tables/vsl_pp_gdppc_iso3c.csv")
+
 #### VSLY PER ISO3C RESULTS ####
 
 # getting total monetary value of vsly per iso3c (population-weighted)

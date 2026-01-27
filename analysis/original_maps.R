@@ -1,9 +1,12 @@
+## NOTE: RUN FILE "extra_iso3c.R" to create maps
+
 hccosts_pp_gdppc_iso3c
 undiscvsly_pp_gdppc_iso3c
 discvsly_pp_gdppc_iso3c
 undiscmonqaly_pp_gdppc_iso3c
 discmonqaly_pp_gdppc_iso3c
 friction_pp_gdppc_iso3c
+vsl_pp_gdppc_iso3c
 
 ##############
 # UNDISCOUNTED EXTRAWELFARIST: UNDISCOUNTED MONETIZED QALYS, HUMAN CAPITAL COSTS, FRICTION COSTS, HEALTHCARE COSTS
@@ -72,6 +75,36 @@ disc_exwelfarist_pp_gdppc_iso3c <- disc_exwelfarist_sum_iso3c %>%
 disc_exwelfarist_pp_gdppc_iso3c
 write.csv(disc_exwelfarist_pp_gdppc_iso3c, "analysis/tables/disc_exwelfarist_pp_gdppc_iso3c.csv")
 
+## NEW WELFARIST WITH VSL, PRODUCTIVITY AND HEALTHCARE
+
+new_welfarist_sum_iso3c <- sum_vsl_iso3c %>%
+  left_join(friction_sum_iso3c, by = "iso3c") %>%
+  left_join(hc_costs_total_iso3c, by = "iso3c") %>%
+  group_by(iso3c) %>%  # Ensure grouping by iso3c
+  reframe(
+    new_welf_total_low = sum(vsl_total_low, friction_total_low, health_costs_total_low, na.rm = TRUE),
+    new_welf_total_med = sum(vsl_total_med, friction_total_med, health_costs_total_med, na.rm = TRUE),
+    new_welf_total_high = sum(vsl_total_high, friction_total_high, health_costs_total_high, na.rm = TRUE)
+  ) %>%
+  filter(if_any(c(new_welf_total_low, new_welf_total_med, new_welf_total_high), ~ . != 0))
+
+# our results table which we can then save in the tables directory
+new_welfarist_sum_iso3c
+write.csv(new_welfarist_sum_iso3c, "analysis/tables/new_welfarist_sum_iso3c.csv")
+
+
+# get in terms of per person vaccinated as a percentage of gdppc
+new_welfarist_pp_pgdp_iso3c <- new_welfarist_sum_iso3c %>%
+  left_join(vaccine_iso3c %>% group_by(iso3c) %>% summarise(vaccines = sum(vaccines, na.rm = TRUE))) %>%
+  left_join(gdppc %>% group_by (iso3c) %>% summarise(gdppc = mean(gdppc, na.rm = TRUE)))%>%
+  mutate(new_welf_low = (((new_welf_total_low / vaccines) / gdppc) * 100),
+         new_welf_med = (((new_welf_total_med / vaccines) / gdppc) * 100),
+         new_welf_high = (((new_welf_total_high / vaccines) / gdppc) * 100)) %>%
+  select(iso3c, new_welf_low, new_welf_med, new_welf_high)
+
+# our results table which we can then save in the tables directory
+new_welfarist_pp_pgdp_iso3c
+write.csv(new_welfarist_pp_pgdp_iso3c, "analysis/tables/new_welfarist_pp_pgdp_iso3c.csv")
 
 ##############
 # UNDISCOUNTED WELFARIST
@@ -100,7 +133,7 @@ library(cowplot)  # For adding labels A and B
 # Define your color palettes
 palette_welfarist <- met.brewer("Archambault")
 palette_vsly <- met.brewer("Hokusai2")
-palette_combined <- met.brewer("OKeeffe1")
+palette_combined <- met.brewer("Signac")
 
 # Load and prepare the world map data and remove Antartica
 world <- ne_countries(scale = "medium", returnclass = "sf") %>%
@@ -116,6 +149,9 @@ world_undiscexwelfarist <- world %>% left_join(undisc_exwelfarist_pp_gdppc_iso3c
 disc_exwelfarist_pp_gdppc_iso3c <- disc_exwelfarist_pp_gdppc_iso3c %>% rename(iso_a3 = iso3c)
 world_discexwelfarist <- world %>% left_join(disc_exwelfarist_pp_gdppc_iso3c, by = "iso_a3")
 
+new_welfarist_pp_pgdp_iso3c <- new_welfarist_pp_pgdp_iso3c %>% rename(iso_a3 = iso3c)
+world_new_welfarist <- world %>% left_join(new_welfarist_pp_pgdp_iso3c, by = "iso_a3")
+
 undisc_welf_pp_pgdppc <- undisc_welf_pp_pgdppc %>% rename(iso_a3 = iso3c)
 world_undiscwelf <- world %>% left_join(undisc_welf_pp_pgdppc, by = "iso_a3")
 
@@ -123,20 +159,42 @@ disc_welf_pp_pgdppc <- disc_welf_pp_pgdppc %>% rename(iso_a3 = iso3c)
 world_discwelf <- world %>% left_join(disc_welf_pp_pgdppc, by = "iso_a3")
 
 # Combine all data into one data frame
+undisc_exwelfarist_pp_gdppc_iso3c <- undisc_exwelfarist_pp_gdppc_iso3c %>%
+  rename_with(~ paste0(.x, "_undisc_exwelf"), -iso_a3)
+
+disc_exwelfarist_pp_gdppc_iso3c <- disc_exwelfarist_pp_gdppc_iso3c %>%
+  rename_with(~ paste0(.x, "_disc_exwelf"), -iso_a3)
+
+new_welfarist_pp_pgdp_iso3c <- new_welfarist_pp_pgdp_iso3c %>%
+  rename_with(~ paste0(.x, "_new_welf"), -iso_a3)
+
 combined <- world %>%
   left_join(undisc_exwelfarist_pp_gdppc_iso3c, by = "iso_a3") %>%
-  left_join(disc_exwelfarist_pp_gdppc_iso3c, by = "iso_a3", suffix = c("_undisc_exwelf", "_disc_exwelf")) %>%
-  left_join(undisc_welf_pp_pgdppc, by = "iso_a3", suffix = c("", "_undisc_vsly")) %>%
-  left_join(disc_welf_pp_pgdppc, by = "iso_a3", suffix = c("", "_disc_vsly"))
+  left_join(disc_exwelfarist_pp_gdppc_iso3c, by = "iso_a3") %>%
+  left_join(new_welfarist_pp_pgdp_iso3c, by = "iso_a3")
 
 # Calculate min and max for color scales for Welfarist and Extra-Welfarist plots
-min_exwelfarist <- min(c(
-  combined$undisc_exwelf_med, combined$disc_exwelf_med
-), na.rm = TRUE)
-max_exwelfarist <- max(c(
-  combined$undisc_exwelf_med, combined$disc_exwelf_med
-), na.rm = TRUE)
+min_exwelfarist <- min(
+  c(combined$undisc_exwelf_med, combined$disc_exwelf_med),
+  na.rm = TRUE
+)
 
+max_exwelfarist <- max(
+  c(combined$undisc_exwelf_med, combined$disc_exwelf_med),
+  na.rm = TRUE
+)
+
+min_new_welf <- min(
+  combined$new_welf_med,
+  na.rm = TRUE
+)
+
+max_new_welf <- max(
+  combined$new_welf_med,
+  na.rm = TRUE
+)
+
+# OLD
 min_welfarist <- min(c(
   combined$undiscvsly_pp_gdppc_med, combined$discvsly_pp_gdppc_med
 ), na.rm = TRUE)
@@ -144,6 +202,7 @@ max_welfarist <- max(c(
   combined$undiscvsly_pp_gdppc_med, combined$discvsly_pp_gdppc_med
 ), na.rm = TRUE)
 
+# Good
 # Create the Extra Welfarist plots using a shared color scale and a single legend
 undisc_exwelfarist_plot <- ggplot() +
   # Base layer: all countries with no fill, light outline
@@ -151,7 +210,7 @@ undisc_exwelfarist_plot <- ggplot() +
   # Data layer: only countries with data, filled
   geom_sf(data = combined %>% filter(!is.na(undisc_exwelf_med)),
           aes(fill = undisc_exwelf_med), color = "grey30", size = 0.2) +
-  scale_fill_gradientn(colors = palette_vsly,
+  scale_fill_gradientn(colors = palette_combined,
                        limits = c(min_exwelfarist, max_exwelfarist),
                        name = "Benefits \n(per person vaccinated (% of GDPpc))") +
   theme_minimal() +
@@ -273,3 +332,25 @@ print(undiscounted_plot)
 save_figs(name = "discounted_plot", discounted_plot)
 save_figs(name = "undiscounted_plot", undiscounted_plot)
 
+# saving for journal requirements
+ggsave(
+  filename = "analysis/plots/discounted_plot.tiff",
+  plot = discounted_plot,
+  device = "tiff",
+  dpi = 600,                # high resolution
+  width = 7.5,              # in inches, ~2250 px at 300 dpi
+  height = 8.5,             # adjust to stay below 2625 px
+  units = "in",
+  compression = "lzw"       # keeps file size smaller
+)
+
+ggsave(
+  filename = "analysis/plots/undiscounted_plot.tiff",
+  plot = undiscounted_plot,
+  device = "tiff",
+  dpi = 600,
+  width = 7.5,
+  height = 8.5,
+  units = "in",
+  compression = "lzw"
+)
