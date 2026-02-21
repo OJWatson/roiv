@@ -7,8 +7,64 @@ library(rnaturalearth)
 library(rnaturalearthdata)
 library(ggplot2)
 library(dplyr)
+library(readr)
 library(patchwork)
 library(MetBrewer)
+
+find_table_path <- function(filename) {
+  candidates <- c(
+    file.path("analysis", "tables", filename),
+    file.path("tables", filename),
+    filename
+  )
+
+  path <- candidates[file.exists(candidates)][1]
+  if (is.na(path)) {
+    stop("Required table not found: ", filename)
+  }
+
+  path
+}
+
+load_map_data <- function(filename, median_col) {
+  dat <- read_csv(find_table_path(filename), show_col_types = FALSE)
+
+  if (!("iso3c" %in% names(dat))) {
+    stop("Missing iso3c column in ", filename)
+  }
+
+  if (!(median_col %in% names(dat))) {
+    med_candidates <- grep("_med$", names(dat), value = TRUE)
+    if (length(med_candidates) == 0) {
+      stop("Missing median column in ", filename)
+    }
+    median_col <- med_candidates[1]
+  }
+
+  dat %>%
+    transmute(
+      iso_a3 = iso3c,
+      value = .data[[median_col]]
+    )
+}
+
+# ------------------------
+# Read generated tables
+# ------------------------
+disc_exwelfarist_pp_gdppc_iso3c <- load_map_data(
+  "disc_exwelfarist_pp_gdppc_iso3c.csv",
+  "disc_exwelf_med"
+)
+
+new_welfarist_pp_pgdp_iso3c <- load_map_data(
+  "new_welfarist_pp_pgdp_iso3c.csv",
+  "new_welf_med"
+)
+
+undisc_exwelfarist_pp_gdppc_iso3c <- load_map_data(
+  "undisc_exwelfarist_pp_gdppc_iso3c.csv",
+  "undisc_exwelf_med"
+)
 
 # ------------------------
 # Prepare world map
@@ -26,11 +82,11 @@ world_new_welf <- world %>% left_join(new_welfarist_pp_pgdp_iso3c, by = "iso_a3"
 # ------------------------
 # Determine separate color scales
 # ------------------------
-min_disc_exwelf <- min(world_disc_exwelf$disc_exwelf_med_disc_exwelf_disc_exwelf, na.rm = TRUE)
-max_disc_exwelf <- max(world_disc_exwelf$disc_exwelf_med_disc_exwelf_disc_exwelf, na.rm = TRUE)
+min_disc_exwelf <- min(world_disc_exwelf$value, na.rm = TRUE)
+max_disc_exwelf <- max(world_disc_exwelf$value, na.rm = TRUE)
 
-min_new_welf <- min(world_new_welf$new_welf_med_new_welf, na.rm = TRUE)
-max_new_welf <- max(world_new_welf$new_welf_med_new_welf, na.rm = TRUE)
+min_new_welf <- min(world_new_welf$value, na.rm = TRUE)
+max_new_welf <- max(world_new_welf$value, na.rm = TRUE)
 
 # ------------------------
 # Define palette
@@ -42,8 +98,8 @@ palette_signac <- met.brewer("Signac")
 # ------------------------
 disc_exwelf_plot <- ggplot() +
   geom_sf(data = world_disc_exwelf, fill = NA, color = "grey80", size = 0.2) +
-  geom_sf(data = world_disc_exwelf %>% filter(!is.na(disc_exwelf_med_disc_exwelf_disc_exwelf)),
-          aes(fill = disc_exwelf_med_disc_exwelf_disc_exwelf), color = "grey30", size = 0.2) +
+  geom_sf(data = world_disc_exwelf %>% filter(!is.na(value)),
+          aes(fill = value), color = "grey30", size = 0.2) +
   scale_fill_gradientn(colors = palette_signac,
                        limits = c(min_disc_exwelf, max_disc_exwelf),
                        name = "Benefits \n(% GDP per person)") +
@@ -54,8 +110,8 @@ disc_exwelf_plot <- ggplot() +
 
 new_welf_plot <- ggplot() +
   geom_sf(data = world_new_welf, fill = NA, color = "grey80", size = 0.2) +
-  geom_sf(data = world_new_welf %>% filter(!is.na(new_welf_med_new_welf)),
-          aes(fill = new_welf_med_new_welf), color = "grey30", size = 0.2) +
+  geom_sf(data = world_new_welf %>% filter(!is.na(value)),
+          aes(fill = value), color = "grey30", size = 0.2) +
   scale_fill_gradientn(colors = palette_signac,
                        limits = c(min_new_welf, max_new_welf),
                        name = "Benefits \n(% GDP per person)") +
@@ -94,18 +150,15 @@ ggsave("analysis/plots/stacked_maps_welfarist_vs_extrawelf.tiff",
 world_undisc_exwelf <- world %>%
   left_join(undisc_exwelfarist_pp_gdppc_iso3c, by = "iso_a3")
 
-# Median column
-median_col <- "undisc_exwelf_med_undisc_exwelf_undisc_exwelf"
-
 # Calculate min and max for the color scale
-min_undisc_exwelf <- min(world_undisc_exwelf[[median_col]], na.rm = TRUE)
-max_undisc_exwelf <- max(world_undisc_exwelf[[median_col]], na.rm = TRUE)
+min_undisc_exwelf <- min(world_undisc_exwelf$value, na.rm = TRUE)
+max_undisc_exwelf <- max(world_undisc_exwelf$value, na.rm = TRUE)
 
 # Create map
 undisc_exwelfarist_plot <- ggplot() +
   geom_sf(data = world_undisc_exwelf, fill = NA, color = "grey80", size = 0.2) +
-  geom_sf(data = world_undisc_exwelf %>% filter(!is.na(.data[[median_col]])),
-          aes(fill = .data[[median_col]]), color = "grey30", size = 0.2) +
+  geom_sf(data = world_undisc_exwelf %>% filter(!is.na(value)),
+          aes(fill = value), color = "grey30", size = 0.2) +
   scale_fill_gradientn(colors = met.brewer("Signac"),
                        limits = c(min_undisc_exwelf, max_undisc_exwelf),
                        name = "Benefits \n(% GDP per person)") +

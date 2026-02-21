@@ -1,7 +1,9 @@
 # Step 0: load packages and files ------
 
 # Load required packages
-install.packages("epiR")
+if (!requireNamespace("epiR", quietly = TRUE)) {
+  stop("Package 'epiR' is required. Please install it before running this script.")
+}
 library(epiR)
 library(ggplot2)
 library(dplyr)
@@ -9,6 +11,9 @@ library(tidyr)
 library(forcats)
 library(readr)
 library(patchwork)
+
+# load plotting helper
+source("R/utils-plot.R")
 
 # Read in and format data
 sens_df <- readRDS("analysis/data/derived/psa_sens_df.rds")
@@ -18,6 +23,16 @@ vsly <- readRDS("analysis/data/derived/vsly.rds")
 gnipc_usa <- read_csv("analysis/data/raw/gnipc_good.csv") %>% filter(iso3c == "USA") %>% pull(gnipc)
 epi_psa <- readRDS("analysis/data/derived/epi_psa.rds")
 friction_costs <- readRDS("analysis/data/derived/friction_costs.rds")
+infection_durations <- read_csv("analysis/data/raw/infection_durations.csv", show_col_types = FALSE) %>%
+  transmute(
+    name = case_when(
+      infection == "nonhospitalized" ~ "infections",
+      infection == "hospitalized" ~ "hospitalisations",
+      TRUE ~ NA_character_
+    ),
+    duration = as.numeric(duration)
+  ) %>%
+  filter(!is.na(name))
 
 # You need to actually recalcuate these so that your sampled values are actually being used in the calculations
 vsly_psa <- vsly %>%
@@ -99,15 +114,15 @@ discmonqaly_replicate_summary <- qaly %>%
   ungroup()
 
 friction_costs_replicate_summary <- friction_costs %>%
+  left_join(infection_durations, by = "name") %>%
   left_join(sens_df, by = "replicate") %>%
   mutate(friction_period = case_when(
     income_group == "HIC" ~ frictionperiod_samples,
-    income_group %in% c("UMIC", "LMIC", "LIC") ~ (3*30.417)
+    income_group %in% c("UMIC", "LMIC", "LIC") ~ (3 * 30.417)
   )) %>%
   mutate(friction_costs = case_when(
-    name == "infections" ~ (gdppc/365.25) * infections_duration * averted,
-    name == "hospitalisations" ~ (gdppc/365.25) * hospitalisations_duration * averted,
-    name == "deaths" ~ (gdppc/365.25) * friction_period * averted
+    name %in% c("infections", "hospitalisations") ~ (gdppc / 365.25) * duration * averted,
+    name == "deaths" ~ (gdppc / 365.25) * friction_period * averted
   )) %>%
   group_by(replicate) %>%
   summarise(friction_costs = sum(friction_costs, na.rm = TRUE)) %>%
@@ -115,11 +130,12 @@ friction_costs_replicate_summary <- friction_costs %>%
 
 # Step 2: Merge with `sens_df` to get input parameters for PRCC -- NEW: for VSL, not VSLY
 psa_data <- vsl_replicate_summary %>%
+  left_join(vsly_replicate_summary, by = c("replicate", "iso3c")) %>%
   left_join(sens_df, by = "replicate") %>%
   left_join(undiscmonqaly_replicate_summary, by = "replicate") %>%
   left_join(discmonqaly_replicate_summary, by = "replicate") %>%
   left_join(friction_costs_replicate_summary, by = "replicate") %>%
-  left_join(epi_psa)
+  left_join(epi_psa, by = c("replicate", "iso3c"))
 
 
 # Confirm the structure
@@ -365,11 +381,11 @@ save_figs(fig = prcc_gg_frictioncosts, name = "prcc_tornado_plot_frictioncosts",
 
 #####
 # Add titles to each individual plot
-#old
-prcc_gg_vsly <- prcc_gg_vsly + labs(title = "Discounted VSLYs")
+if (exists("prcc_gg_vsly")) {
+  prcc_gg_vsly <- prcc_gg_vsly + labs(title = "Discounted VSLYs")
+}
 prcc_gg_unvsly <- prcc_gg_unvsly + labs(title = "Undiscounted VSLYs")
 
-#new
 prcc_gg_vsl <- prcc_gg_vsl + labs(title = "VSLs")
 prcc_gg_undiscmonqalys <- prcc_gg_undiscmonqalys + labs(title = "Undiscounted Monetized QALYs")
 prcc_gg_discmonqalys <- prcc_gg_discmonqalys + labs(title = "Discounted Monetized QALYs Averted")
