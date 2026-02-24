@@ -1,0 +1,50 @@
+R version 4.5.1 (2025-06-13)
+Platform: x86_64-pc-linux-gnu
+Running under: Ubuntu 22.04.5 LTS
+
+Matrix products: default
+BLAS:   /usr/lib/x86_64-linux-gnu/blas/libblas.so.3.10.0 
+LAPACK: /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.10.0  LAPACK version 3.10.0
+
+locale:
+ [1] LC_CTYPE=en_GB.UTF-8       LC_NUMERIC=C               LC_TIME=en_GB.UTF-8        LC_COLLATE=en_GB.UTF-8     LC_MONETARY=en_GB.UTF-8   
+ [6] LC_MESSAGES=en_GB.UTF-8    LC_PAPER=en_GB.UTF-8       LC_NAME=C                  LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_GB.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Europe/London
+tzcode source: system (glibc)
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] cowplot_1.2.0           epiR_2.0.91             survival_3.8-3          patchwork_1.3.1         rnaturalearthdata_1.0.0
+ [6] rnaturalearth_1.0.1     sf_1.0-21               lhs_1.2.0               roiv_0.1.0              MetBrewer_0.3.0        
+[11] lubridate_1.9.4         forcats_1.0.0           stringr_1.6.0           dplyr_1.1.4             purrr_1.2.1            
+[16] readr_2.1.5             tidyr_1.3.2             tibble_3.3.1            ggplot2_4.0.1           tidyverse_2.0.0        
+
+loaded via a namespace (and not attached):
+  [1] RColorBrewer_1.1-3      rstudioapi_0.17.1       jsonlite_2.0.0          magrittr_2.0.4          rmarkdown_2.30         
+  [6] farver_2.1.2            fs_1.6.6                ragg_1.4.0              vctrs_0.7.1             memoise_2.0.1          
+ [11] askpass_1.2.1           terra_1.8-60            squire_0.7.1            htmltools_0.5.9         cinterpolate_1.0.2     
+ [16] usethis_3.1.0           curl_7.0.0              deSolve_1.40            parallelly_1.45.1       KernSmooth_2.23-26     
+ [21] htmlwidgets_1.6.4       desc_1.4.3              zoo_1.8-14              cachem_1.1.0            uuid_1.2-1             
+ [26] mime_0.13               lifecycle_1.0.5         pkgconfig_2.0.3         Matrix_1.7-4            R6_2.6.1               
+ [31] fastmap_1.2.0           future_1.67.0           shiny_1.11.1            digest_0.6.39           furrr_0.3.1            
+ [36] ps_1.9.1                rprojroot_2.1.1         pkgload_1.4.1           textshaping_1.0.1       labeling_0.4.3         
+ [41] timechange_0.3.0        httr_1.4.7              compiler_4.5.1          here_1.0.1              proxy_0.4-27           
+ [46] remotes_2.5.0           bit64_4.6.0-1           fontquiver_0.2.1        withr_3.0.2             pander_0.6.6           
+ [51] S7_0.2.1                viridis_0.6.5           DBI_1.2.3               odin_1.5.11             pkgbuild_1.4.8         
+ [56] BiasedUrn_2.0.12        openssl_2.3.3           sessioninfo_1.2.3       classInt_0.4-11         tools_4.5.1            
+ [61] units_0.8-7             zip_2.3.3               httpuv_1.6.16           glue_1.8.0              callr_3.7.6            
+ [66] promises_1.3.3          grid_4.5.1              generics_0.1.4          countrycode_1.6.1       gtable_0.3.6           
+ [71] tzdb_0.5.0              class_7.3-23            data.table_1.17.8       hms_1.1.3               xml2_1.5.2             
+ [76] utf8_1.2.6              ggrepel_0.9.6           pillar_1.11.1           vroom_1.6.5             later_1.4.2            
+ [81] splines_4.5.1           lattice_0.22-5          bit_4.6.0               tidyselect_1.2.1        fontLiberation_0.1.0   
+ [86] miniUI_0.1.2            knitr_1.51              fontBitstreamVera_0.1.1 gridExtra_2.3           squire.page_0.0.0.9000 
+ [91] xfun_0.56               nimue_0.1.23            dde_1.0.7               devtools_2.4.5          stringi_1.8.7          
+ [96] evaluate_1.0.5          codetools_0.2-19        officer_0.6.10          gdtools_0.4.2           cli_3.6.5              
+[101] xtable_1.8-4            systemfonts_1.2.3       processx_3.8.6          dichromat_2.0-0.1       Rcpp_1.1.1             
+[106] globals_0.18.0          coda_0.19-4.1           parallel_4.5.1          ggstream_0.1.0          ellipsis_0.3.2         
+[111] profvis_0.4.0           urlchecker_1.0.1        listenv_0.9.1           viridisLite_0.4.2       mvtnorm_1.3-3          
+[116] scales_1.4.0            e1071_1.7-16            crayon_1.5.3            flextable_0.9.9         rlang_1.1.7            
