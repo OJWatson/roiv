@@ -12,7 +12,7 @@ vsl_sa <- res_full %>%
     vsl = mean_vsl_usa * (gnipc / gnipc_usa)^income_elasticity
   )
 
-saveRDS(vsl, "analysis/data/derived/vsl_sa.rds")
+saveRDS(vsl_sa, "analysis/data/derived/vsl_sa.rds")
 
 # getting total monetary value of vsl per income group (population-weighted)
 vsl_sa_avertedtotal_income <- vsl_sa %>%

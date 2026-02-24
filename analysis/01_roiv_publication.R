@@ -653,6 +653,7 @@ res_full <- res_full %>%
   left_join(
     read_csv("analysis/data/raw/gdppc_2021_good.csv"),
     by = "iso3c")
+saveRDS(res_full, "analysis/data/derived/res_full.rds")
 
 # extract USA GNIPC value
 gnipc_usa <- res_full %>%
