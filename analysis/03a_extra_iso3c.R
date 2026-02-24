@@ -1,3 +1,12 @@
+
+setwd(here::here())
+vsl <- readRDS("analysis/data/derived/vsl.rds")
+vsly <- readRDS("analysis/data/derived/vsly.rds")
+qaly <- readRDS("analysis/data/derived/qaly.rds")
+friction_costs <- readRDS("analysis/data/derived/friction_costs.rds")
+hc_costs_grouped <- readRDS("analysis/data/derived/hc_costs.rds")
+res_full <- readRDS("analysis/data/derived/res_full.rds")
+
 ### VSL PER ISO3C RESULTS ###
 
 sum_vsl_iso3c <- vsl %>%
@@ -629,7 +638,7 @@ undiscmonqaly_pp_gdppc_iso3c <- qaly %>%
 
 # our results table which we can then save in the tables directory
 undiscmonqaly_pp_gdppc_iso3c
-write.csv(undiscmonqaly_pp_gdppc_iso3c, "undiscmonqaly_pp_gdppc_iso3c.csv")
+write.csv(undiscmonqaly_pp_gdppc_iso3c, "analysis/tables/undiscmonqaly_pp_gdppc_iso3c.csv")
 
 # for each country
 discmonqaly_pp_gdppc_iso3c <- qaly %>%
@@ -656,7 +665,7 @@ discmonqaly_pp_gdppc_iso3c <- qaly %>%
 
 # our results table which we can then save in the tables directory
 discmonqaly_pp_gdppc_iso3c
-write.csv(discmonqaly_pp_gdppc_iso3c, "discmonqaly_pp_gdppc_iso3c.csv")
+write.csv(discmonqaly_pp_gdppc_iso3c, "analysis/tables/discmonqaly_pp_gdppc_iso3c.csv")
 
 #### FRICTION COSTS PER ISO3C RESULTS ####
 friction_pp_gdppc_iso3c <- friction_costs %>%

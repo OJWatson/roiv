@@ -1,4 +1,4 @@
-setwd("~/documents/GitHub/roiv")
+setwd(here::here())
 library(tidyverse)
 library("MetBrewer")
 
@@ -232,7 +232,7 @@ write.csv(lg_sum, "analysis/tables/lg_sum.csv")
 total_vaccine <- vaccine_iso3c %>%
   summarise(vaccines = sum(vaccines, na.rm = TRUE))
 
-total_vaccines <- 2415645947
+total_vaccines <- total_vaccine$vaccines
 
 lg_pp_world <- res_full %>%
   filter(name == "deaths") %>%
@@ -653,6 +653,7 @@ res_full <- res_full %>%
   left_join(
     read_csv("analysis/data/raw/gdppc_2021_good.csv"),
     by = "iso3c")
+saveRDS(res_full, "analysis/data/derived/res_full.rds")
 
 # extract USA GNIPC value
 gnipc_usa <- res_full %>%
@@ -2270,7 +2271,7 @@ hic_hccosts_2021 <- hic_hccosts_2021 %>%
 # bind with lmic costs
 
 hc_costs_grouped <- bind_rows(hic_hccosts_2021, hc_costs_lmic)
-
+saveRDS(hc_costs_grouped, "analysis/data/derived/hc_costs.rds")
 # get healthcare costs as a % of GDP
 # sum costs averted for each income group
 

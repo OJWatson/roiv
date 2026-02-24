@@ -1,7 +1,11 @@
+setwd(here::here())
+
 # Step 0: load packages and files ------
 
 # Load required packages
-install.packages("epiR")
+if (!requireNamespace("epiR", quietly = TRUE)) {
+  stop("Package 'epiR' is required. Please install it before running this script.")
+}
 library(epiR)
 library(ggplot2)
 library(dplyr)
@@ -9,6 +13,9 @@ library(tidyr)
 library(forcats)
 library(readr)
 library(patchwork)
+
+# load plotting helper
+source("R/utils-plot.R")
 
 # Read in and format data
 sens_df <- readRDS("analysis/data/derived/psa_sens_df.rds")
@@ -18,6 +25,16 @@ vsly <- readRDS("analysis/data/derived/vsly.rds")
 gnipc_usa <- read_csv("analysis/data/raw/gnipc_good.csv") %>% filter(iso3c == "USA") %>% pull(gnipc)
 epi_psa <- readRDS("analysis/data/derived/epi_psa.rds")
 friction_costs <- readRDS("analysis/data/derived/friction_costs.rds")
+infection_durations <- read_csv("analysis/data/raw/infection_durations.csv", show_col_types = FALSE) %>%
+  transmute(
+    name = case_when(
+      infection == "nonhospitalized" ~ "infections",
+      infection == "hospitalized" ~ "hospitalisations",
+      TRUE ~ NA_character_
+    ),
+    duration = as.numeric(duration)
+  ) %>%
+  filter(!is.na(name))
 
 # You need to actually recalcuate these so that your sampled values are actually being used in the calculations
 vsly_psa <- vsly %>%
@@ -99,15 +116,15 @@ discmonqaly_replicate_summary <- qaly %>%
   ungroup()
 
 friction_costs_replicate_summary <- friction_costs %>%
+  left_join(infection_durations, by = "name") %>%
   left_join(sens_df, by = "replicate") %>%
   mutate(friction_period = case_when(
     income_group == "HIC" ~ frictionperiod_samples,
-    income_group %in% c("UMIC", "LMIC", "LIC") ~ (3*30.417)
+    income_group %in% c("UMIC", "LMIC", "LIC") ~ (3 * 30.417)
   )) %>%
   mutate(friction_costs = case_when(
-    name == "infections" ~ (gdppc/365.25) * infections_duration * averted,
-    name == "hospitalisations" ~ (gdppc/365.25) * hospitalisations_duration * averted,
-    name == "deaths" ~ (gdppc/365.25) * friction_period * averted
+    name %in% c("infections", "hospitalisations") ~ (gdppc / 365.25) * duration * averted,
+    name == "deaths" ~ (gdppc / 365.25) * friction_period * averted
   )) %>%
   group_by(replicate) %>%
   summarise(friction_costs = sum(friction_costs, na.rm = TRUE)) %>%
@@ -115,11 +132,12 @@ friction_costs_replicate_summary <- friction_costs %>%
 
 # Step 2: Merge with `sens_df` to get input parameters for PRCC -- NEW: for VSL, not VSLY
 psa_data <- vsl_replicate_summary %>%
+  left_join(vsly_replicate_summary, by = c("replicate", "iso3c")) %>%
   left_join(sens_df, by = "replicate") %>%
   left_join(undiscmonqaly_replicate_summary, by = "replicate") %>%
   left_join(discmonqaly_replicate_summary, by = "replicate") %>%
   left_join(friction_costs_replicate_summary, by = "replicate") %>%
-  left_join(epi_psa)
+  left_join(epi_psa, by = c("replicate", "iso3c"))
 
 
 # Confirm the structure
@@ -365,11 +383,11 @@ save_figs(fig = prcc_gg_frictioncosts, name = "prcc_tornado_plot_frictioncosts",
 
 #####
 # Add titles to each individual plot
-#old
-prcc_gg_vsly <- prcc_gg_vsly + labs(title = "Discounted VSLYs")
+if (exists("prcc_gg_vsly")) {
+  prcc_gg_vsly <- prcc_gg_vsly + labs(title = "Discounted VSLYs")
+}
 prcc_gg_unvsly <- prcc_gg_unvsly + labs(title = "Undiscounted VSLYs")
 
-#new
 prcc_gg_vsl <- prcc_gg_vsl + labs(title = "VSLs")
 prcc_gg_undiscmonqalys <- prcc_gg_undiscmonqalys + labs(title = "Undiscounted Monetized QALYs")
 prcc_gg_discmonqalys <- prcc_gg_discmonqalys + labs(title = "Discounted Monetized QALYs Averted")
@@ -378,22 +396,22 @@ prcc_gg_frictioncosts <- prcc_gg_frictioncosts + labs(title = "Friction Costs")
 # Combine the plots with titles
 #NEW: no VSLYs, VSL instead
 prcc_combined_plot <- wrap_plots(
-  prcc_gg_vsl / prcc_gg_undiscmonqalys /
-    prcc_gg_discmonqalys / prcc_gg_frictioncosts,
+  prcc_gg_vsl , prcc_gg_undiscmonqalys ,
+    prcc_gg_discmonqalys , prcc_gg_frictioncosts,
   ncol = 1,
-  heights = c(1, 1, 0.5)  # Adjust height of the last row
+  heights = c(1, 1, 1, 0.5)  # Adjust height of the last row
 ) +
   plot_annotation(tag_levels = 'A')
 
 # Display the combined plot
 prcc_combined_plot
-save_figs(fig = prcc_combined_plot, name = "prcc_combined_plot", width = 5, height = 28)
+save_figs(fig = prcc_combined_plot, name = "prcc_combined_plot", width = 5, height = 10)
 
 # Combine the plots with titles - discounted
 
 prcc_discounted_plot <- wrap_plots(
-  prcc_gg_vsl /
-    prcc_gg_discmonqalys / prcc_gg_frictioncosts,
+  prcc_gg_vsl ,
+    prcc_gg_discmonqalys , prcc_gg_frictioncosts,
   ncol = 1,
   heights = c(1, 1, 0.5)  # Adjust height of the last row
 ) +
@@ -401,19 +419,19 @@ prcc_discounted_plot <- wrap_plots(
 
 # Display the combined plot
 prcc_discounted_plot
-save_figs(fig = prcc_discounted_plot, name = "prcc_discounted_plot", width = 5, height = 15)
+save_figs(fig = prcc_discounted_plot, name = "prcc_discounted_plot", width = 5, height = 6)
 
 # Combine the plots with titles - Undiscounted
 
-prcc_undiscounted_plot <- wrap_plots(prcc_gg_vsl / prcc_gg_undiscmonqalys,
+prcc_undiscounted_plot <- wrap_plots(prcc_gg_vsl , prcc_gg_undiscmonqalys,
                                      ncol = 1,
-                                     heights = c(1, 1, 0.5)  # Adjust height of the last row
+                                     heights = c(1,  0.5)  # Adjust height of the last row
 ) +
   plot_annotation(tag_levels = 'A')
 
 # Display the combined plot
 prcc_undiscounted_plot
-save_figs(fig = prcc_undiscounted_plot, name = "prcc_undiscounted_plot", width = 5, height = 15)
+save_figs(fig = prcc_undiscounted_plot, name = "prcc_undiscounted_plot", width = 5, height = 6)
 
 
 
@@ -426,89 +444,89 @@ save_figs(fig = prcc_undiscounted_plot, name = "prcc_undiscounted_plot", width =
 ######################################### OLD CODE ################################
 
 # Define input parameters
-inputs <- psa_data %>%
-  select(vsl_samples, wtp_hic_samples, wtp_umic_samples, wtp_lmic_samples,
-         wtp_lic_samples, QALY_infection_samples, QALY_hospitalisations_samples,
-         QALY_deaths_samples, frictionperiod_samples)
-
-# Create a list of outputs with labels
-outputs <- list(
-  vsly_disc_averted = "Discounted VSLYs",
-  vsly_undisc_averted = "Undiscounted VSLYs",
-  undiscmonqalys_averted_sum = "Undiscounted Monetized QALYs",
-  discmonqalys_averted_sum = "Discounted Monetized QALYs",
-  friction_costs = "Friction Costs"
-)
-
-# Initialize an empty dataframe to store all PRCC results
-prcc_combined_df <- data.frame()
-
-# Compute PRCC for each output and combine results
-for (outcome in names(outputs)) {
-  output <- psa_data[[outcome]]
-
-  # Compute PRCC using epi.prcc()
-  prcc_results <- epi.prcc(dat = cbind(inputs, output), sided.test = 2)
-
-  # Convert PRCC results into a data frame
-  prcc_df <- data.frame(
-    Parameter = names(inputs),
-    PRCC = prcc_results$est,
-    P_Value = prcc_results$p.value,
-    Outcome = outputs[[outcome]]  # Label for subcategory
-  )
-
-  # Append to combined dataframe
-  prcc_combined_df <- rbind(prcc_combined_df, prcc_df)
-}
-
-# Define the custom order for the outcomes
-output_order <- c(
-  "Discounted Monetized QALYs",
-  "Undiscounted Monetized QALYs",
-  "Discounted VSLYs",
-  "Undiscounted VSLYs",
-  "Friction Costs"
-)
-
-# Reorder the Outcome factor in the prcc_combined_df data frame
-prcc_combined_df <- prcc_combined_df %>%
-  mutate(Outcome = factor(Outcome, levels = output_order))
-
-labels <- c(
-  "QALY_hospitalisations_samples" = "QALY loss per hospitalisations",
-  "frictionperiod_samples" = "Friction period (HICs)",
-  "wtp_lic_samples" = "% GDP for WTP threshold (LICs)",
-  "wtp_umic_samples" = "% GDP for WTP threshold (UMICs)",
-  "wtp_lmic_samples" = "% GDP for WTP threshold (LMICs)",
-  "wtp_hic_samples" = "% GDP for WTP threshold (HICs)",
-  "vsl_samples" = "USA VSL value",
-  "QALY_deaths_samples" = "QALY loss per death",
-  "QALY_infection_samples" = "QALY loss per infection"
-
-)
-
-prcc_palette <- c("#2f70a1", "#72aeb6")
-
-# Create a single tornado plot with subcategories
-prcc_combined_plot <- ggplot(prcc_combined_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0)) +
-  geom_hline(yintercept = 0, linetype = "solid") +
-  geom_bar(stat = "identity", width = 0.7) +
-  coord_flip() +
-  facet_wrap(~Outcome, ncol = 1, scales = "free_y") +  # Subcategories in separate rows
-  scale_x_discrete(labels = labels) +
-  scale_fill_manual(values = prcc_palette, labels = c("Negative", "Positive")) +  # Fix here
-  labs(
-    title = "Tornado Plot of PRCC Values by Outcome",
-    x = "Parameter",
-    y = "Partial Rank Correlation Coefficient (PRCC)"
-  ) +
-  theme_minimal(base_family = "Helvetica", base_size = 10) +
-  theme(legend.position = "none", plot.background = element_rect(fill = "white", color = "white"),
-        axis.title.y = element_blank()
-  )
-
-
-# Display and save the combined plot
-print(prcc_combined_plot)
-save_figs(fig = prcc_combined_plot, name = "prcc_combined_plot", width = 8, height = 9)
+# inputs <- psa_data %>%
+#   select(vsl_samples, wtp_hic_samples, wtp_umic_samples, wtp_lmic_samples,
+#          wtp_lic_samples, QALY_infection_samples, QALY_hospitalisations_samples,
+#          QALY_deaths_samples, frictionperiod_samples)
+#
+# # Create a list of outputs with labels
+# outputs <- list(
+#   vsly_disc_averted = "Discounted VSLYs",
+#   vsly_undisc_averted = "Undiscounted VSLYs",
+#   undiscmonqalys_averted_sum = "Undiscounted Monetized QALYs",
+#   discmonqalys_averted_sum = "Discounted Monetized QALYs",
+#   friction_costs = "Friction Costs"
+# )
+#
+# # Initialize an empty dataframe to store all PRCC results
+# prcc_combined_df <- data.frame()
+#
+# # Compute PRCC for each output and combine results
+# for (outcome in names(outputs)) {
+#   output <- psa_data[[outcome]]
+#
+#   # Compute PRCC using epi.prcc()
+#   prcc_results <- epi.prcc(dat = cbind(inputs, output), sided.test = 2)
+#
+#   # Convert PRCC results into a data frame
+#   prcc_df <- data.frame(
+#     Parameter = names(inputs),
+#     PRCC = prcc_results$est,
+#     P_Value = prcc_results$p.value,
+#     Outcome = outputs[[outcome]]  # Label for subcategory
+#   )
+#
+#   # Append to combined dataframe
+#   prcc_combined_df <- rbind(prcc_combined_df, prcc_df)
+# }
+#
+# # Define the custom order for the outcomes
+# output_order <- c(
+#   "Discounted Monetized QALYs",
+#   "Undiscounted Monetized QALYs",
+#   "Discounted VSLYs",
+#   "Undiscounted VSLYs",
+#   "Friction Costs"
+# )
+#
+# # Reorder the Outcome factor in the prcc_combined_df data frame
+# prcc_combined_df <- prcc_combined_df %>%
+#   mutate(Outcome = factor(Outcome, levels = output_order))
+#
+# labels <- c(
+#   "QALY_hospitalisations_samples" = "QALY loss per hospitalisations",
+#   "frictionperiod_samples" = "Friction period (HICs)",
+#   "wtp_lic_samples" = "% GDP for WTP threshold (LICs)",
+#   "wtp_umic_samples" = "% GDP for WTP threshold (UMICs)",
+#   "wtp_lmic_samples" = "% GDP for WTP threshold (LMICs)",
+#   "wtp_hic_samples" = "% GDP for WTP threshold (HICs)",
+#   "vsl_samples" = "USA VSL value",
+#   "QALY_deaths_samples" = "QALY loss per death",
+#   "QALY_infection_samples" = "QALY loss per infection"
+#
+# )
+#
+# prcc_palette <- c("#2f70a1", "#72aeb6")
+#
+# # Create a single tornado plot with subcategories
+# prcc_combined_plot <- ggplot(prcc_combined_df, aes(x = Parameter, y = PRCC, fill = PRCC > 0)) +
+#   geom_hline(yintercept = 0, linetype = "solid") +
+#   geom_bar(stat = "identity", width = 0.7) +
+#   coord_flip() +
+#   facet_wrap(~Outcome, ncol = 1, scales = "free_y") +  # Subcategories in separate rows
+#   scale_x_discrete(labels = labels) +
+#   scale_fill_manual(values = prcc_palette, labels = c("Negative", "Positive")) +  # Fix here
+#   labs(
+#     title = "Tornado Plot of PRCC Values by Outcome",
+#     x = "Parameter",
+#     y = "Partial Rank Correlation Coefficient (PRCC)"
+#   ) +
+#   theme_minimal(base_family = "Helvetica", base_size = 10) +
+#   theme(legend.position = "none", plot.background = element_rect(fill = "white", color = "white"),
+#         axis.title.y = element_blank()
+#   )
+#
+#
+# # Display and save the combined plot
+# print(prcc_combined_plot)
+# save_figs(fig = prcc_combined_plot, name = "prcc_combined_plot", width = 8, height = 9)

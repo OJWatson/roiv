@@ -1,4 +1,4 @@
-setwd("~/documents/GitHub/roiv")
+setwd(here::here())
 library(tidyverse)
 library("MetBrewer")
 
