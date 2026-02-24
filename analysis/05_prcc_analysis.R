@@ -403,7 +403,7 @@ prcc_combined_plot <- wrap_plots(
 
 # Display the combined plot
 prcc_combined_plot
-save_figs(fig = prcc_combined_plot, name = "prcc_combined_plot", width = 5, height = 28)
+save_figs(fig = prcc_combined_plot, name = "prcc_combined_plot", width = 5, height = 10)
 
 # Combine the plots with titles - discounted
 
@@ -417,7 +417,7 @@ prcc_discounted_plot <- wrap_plots(
 
 # Display the combined plot
 prcc_discounted_plot
-save_figs(fig = prcc_discounted_plot, name = "prcc_discounted_plot", width = 5, height = 15)
+save_figs(fig = prcc_discounted_plot, name = "prcc_discounted_plot", width = 5, height = 6)
 
 # Combine the plots with titles - Undiscounted
 
@@ -429,7 +429,7 @@ prcc_undiscounted_plot <- wrap_plots(prcc_gg_vsl , prcc_gg_undiscmonqalys,
 
 # Display the combined plot
 prcc_undiscounted_plot
-save_figs(fig = prcc_undiscounted_plot, name = "prcc_undiscounted_plot", width = 5, height = 15)
+save_figs(fig = prcc_undiscounted_plot, name = "prcc_undiscounted_plot", width = 5, height = 6)
 
 
 
