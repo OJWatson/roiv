@@ -2271,7 +2271,7 @@ hic_hccosts_2021 <- hic_hccosts_2021 %>%
 # bind with lmic costs
 
 hc_costs_grouped <- bind_rows(hic_hccosts_2021, hc_costs_lmic)
-
+saveRDS(hc_costs_grouped, "analysis/data/derived/hc_costs.rds")
 # get healthcare costs as a % of GDP
 # sum costs averted for each income group
 

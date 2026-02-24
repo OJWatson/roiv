@@ -1,12 +1,17 @@
 ## NOTE: RUN FILE "extra_iso3c.R" to create maps
 
-hccosts_pp_gdppc_iso3c
-undiscvsly_pp_gdppc_iso3c
-discvsly_pp_gdppc_iso3c
-undiscmonqaly_pp_gdppc_iso3c
-discmonqaly_pp_gdppc_iso3c
-friction_pp_gdppc_iso3c
-vsl_pp_gdppc_iso3c
+undiscvsly_pp_gdppc_iso3c <- read.csv("analysis/tables/undiscvsly_pp_gdppc_iso3c.csv")
+discvsly_pp_gdppc_iso3c <- read.csv("analysis/tables/discvsly_pp_gdppc_iso3c.csv")
+undiscmonqaly_pp_gdppc_iso3c <- read.csv("analysis/tables/undiscmonqaly_pp_gdppc_iso3c.csv")
+discmonqaly_pp_gdppc_iso3c <- read.csv("analysis/tables/discmonqaly_pp_gdppc_iso3c.csv")
+friction_pp_gdppc_iso3c <- read.csv("analysis/tables/friction_pp_gdppc_iso3c.csv")
+vsl_pp_gdppc_iso3c <- read.csv("analysis/tables/vsl_pp_gdppc_iso3c.csv")
+hccosts_pp_gdppc_iso3c <- read.csv("analysis/tables/hccosts_pp_gdppc_iso3c.csv")
+
+vaccine_iso3c <- readRDS("analysis/data/derived/vaccine_iso3c.rds")
+gdppc <- vaccine_iso3c %>%
+  left_join(read_csv("analysis/data/raw/GDP_iso3c.csv"), by = "iso3c") %>%
+  mutate(gdppc = gdp/Ng)
 
 ##############
 # UNDISCOUNTED EXTRAWELFARIST: UNDISCOUNTED MONETIZED QALYS, HUMAN CAPITAL COSTS, FRICTION COSTS, HEALTHCARE COSTS
@@ -159,38 +164,43 @@ disc_welf_pp_pgdppc <- disc_welf_pp_pgdppc %>% rename(iso_a3 = iso3c)
 world_discwelf <- world %>% left_join(disc_welf_pp_pgdppc, by = "iso_a3")
 
 # Combine all data into one data frame
-undisc_exwelfarist_pp_gdppc_iso3c <- undisc_exwelfarist_pp_gdppc_iso3c %>%
-  rename_with(~ paste0(.x, "_undisc_exwelf"), -iso_a3)
-
-disc_exwelfarist_pp_gdppc_iso3c <- disc_exwelfarist_pp_gdppc_iso3c %>%
-  rename_with(~ paste0(.x, "_disc_exwelf"), -iso_a3)
-
-new_welfarist_pp_pgdp_iso3c <- new_welfarist_pp_pgdp_iso3c %>%
-  rename_with(~ paste0(.x, "_new_welf"), -iso_a3)
+# undisc_exwelfarist_pp_gdppc_iso3c <- undisc_exwelfarist_pp_gdppc_iso3c %>%
+#   rename_with(~ paste0(.x, "_undisc_exwelf"), -iso_a3)
+#
+# disc_exwelfarist_pp_gdppc_iso3c <- disc_exwelfarist_pp_gdppc_iso3c %>%
+#   rename_with(~ paste0(.x, "_disc_exwelf"), -iso_a3)
+#
+# new_welfarist_pp_pgdp_iso3c <- new_welfarist_pp_pgdp_iso3c %>%
+#   rename_with(~ paste0(.x, "_new_welf"), -iso_a3)
 
 combined <- world %>%
   left_join(undisc_exwelfarist_pp_gdppc_iso3c, by = "iso_a3") %>%
   left_join(disc_exwelfarist_pp_gdppc_iso3c, by = "iso_a3") %>%
-  left_join(new_welfarist_pp_pgdp_iso3c, by = "iso_a3")
+  left_join(new_welfarist_pp_pgdp_iso3c, by = "iso_a3") %>%
+  left_join(undisc_welf_pp_pgdppc, by = "iso_a3") %>%
+  left_join(disc_welf_pp_pgdppc, by = "iso_a3")
+
+min_finite <- function(x, ...){ min(x[is.finite(x)], ...) }
+max_finite <- function(x, ...){ max(x[is.finite(x)], ...) }
 
 # Calculate min and max for color scales for Welfarist and Extra-Welfarist plots
-min_exwelfarist <- min(
-  c(combined$undisc_exwelf_med, combined$disc_exwelf_med),
+min_exwelfarist <- min_finite(
+  (c(combined$undisc_exwelf_med, combined$disc_exwelf_med)),
   na.rm = TRUE
 )
 
-max_exwelfarist <- max(
-  c(combined$undisc_exwelf_med, combined$disc_exwelf_med),
+max_exwelfarist <- max_finite(
+  (c(combined$undisc_exwelf_med, combined$disc_exwelf_med)),
   na.rm = TRUE
 )
 
-min_new_welf <- min(
-  combined$new_welf_med,
+min_new_welf <- min_finite(
+  (combined$new_welf_med),
   na.rm = TRUE
 )
 
-max_new_welf <- max(
-  combined$new_welf_med,
+max_new_welf <- max_finite(
+  (combined$new_welf_med),
   na.rm = TRUE
 )
 
@@ -210,7 +220,7 @@ undisc_exwelfarist_plot <- ggplot() +
   # Data layer: only countries with data, filled
   geom_sf(data = combined %>% filter(!is.na(undisc_exwelf_med)),
           aes(fill = undisc_exwelf_med), color = "grey30", size = 0.2) +
-  scale_fill_gradientn(colors = palette_combined,
+  scale_fill_gradientn(colors = palette_vsly,
                        limits = c(min_exwelfarist, max_exwelfarist),
                        name = "Benefits \n(per person vaccinated (% of GDPpc))") +
   theme_minimal() +
