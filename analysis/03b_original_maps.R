@@ -1,4 +1,5 @@
 ## NOTE: RUN FILE "extra_iso3c.R" to create maps
+setwd(here::here())
 
 undiscvsly_pp_gdppc_iso3c <- read.csv("analysis/tables/undiscvsly_pp_gdppc_iso3c.csv")
 discvsly_pp_gdppc_iso3c <- read.csv("analysis/tables/discvsly_pp_gdppc_iso3c.csv")

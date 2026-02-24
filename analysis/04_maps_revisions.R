@@ -1,3 +1,5 @@
+setwd(here::here())
+
 ##########################
 # Combined Maps: Discounted Extra-Welfarist vs New Welfarist (Stacked, separate scales)
 ##########################

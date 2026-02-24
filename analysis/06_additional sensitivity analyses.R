@@ -1,3 +1,68 @@
+#### READING IN DATA AND FUNCTIONS ###
+
+setwd(here::here())
+res_full <- readRDS("analysis/data/derived/res_full.rds")
+sum_friction <- read.csv("analysis/tables/sum_friction.csv")[,-1]
+sum_hc_costs <- read.csv("analysis/tables/sum_hc_costs.csv")[,-1]
+
+# get population-weighted GDP per income group
+vaccine_iso3c <- readRDS("analysis/data/derived/vaccine_iso3c.rds")
+gdp <- vaccine_iso3c %>%
+  left_join(read_csv("analysis/data/raw/GDP_iso3c.csv"), by = "iso3c") %>%
+  select(iso3c, income_group, gdp, Ng)
+gdppc <- vaccine_iso3c %>%
+  left_join(read_csv("analysis/data/raw/GDP_iso3c.csv"), by = "iso3c") %>%
+  mutate(gdppc = gdp/Ng)
+
+gdppc_world <- gdp %>%
+  left_join(squire::population %>% group_by(iso3c) %>% summarise(Ng = sum(n)))
+
+total_gdp <- sum(gdppc_world$gdp, na.rm = TRUE)
+total_population <- sum(gdppc_world$Ng, na.rm = TRUE)
+world_gdppc <- total_gdp / total_population
+
+total_vaccine <- vaccine_iso3c %>%
+  summarise(vaccines = sum(vaccines, na.rm = TRUE))
+
+total_vaccines <- total_vaccine$vaccines
+
+# add in usa gdp deflator index 2010, 2019, 2021, 2022
+usa_gdp_deflator2010 <- 92.1
+usa_gdp_deflator2019 <- 107.3
+usa_gdp_deflator2020 <- 108.7
+usa_gdp_deflator2021 <- 113.6
+usa_gdp_deflator2022 <- 121.6
+
+del_cost <- 8937890003
+dev_funding <- ((12258230000 * (usa_gdp_deflator2021/usa_gdp_deflator2020)) + 378030000)
+apa <-  ((38792490000 * (usa_gdp_deflator2021/usa_gdp_deflator2020)) + 2200000000)
+corporate <- ((11000000000 * (1/0.845) * (usa_gdp_deflator2021/usa_gdp_deflator2020))
+              + (517330000* (usa_gdp_deflator2021/usa_gdp_deflator2020)))
+manu <- ((204000000 * (usa_gdp_deflator2021/usa_gdp_deflator2020)) + 176000000)
+
+# read in USA VSL value
+vsl_usa <- read_csv("analysis/data/raw/VSL_USA_2021.csv")
+# remove rows with all NA values
+vsl_usa <- vsl_usa %>%
+  filter_all(any_vars(!is.na(.)))
+# remove columns with all NA values
+vsl_usa <- vsl_usa %>%
+  select(which(colSums(is.na(.)) != nrow(vsl_usa)))
+
+# extract USA VSL value (pulling value from data frame from column "mean" and row 1)
+mean_vsl_usa <- vsl_usa$"mean"[1]
+# extract USA GNIPC value
+gnipc_usa <- res_full %>%
+  filter(iso3c == "USA") %>%
+  pull(gnipc) %>%
+  first()
+
+# add uncertainty functions
+lf <- function(x){quantile(x, 0.025, na.rm=TRUE)}
+mf <- function(x){quantile(x, 0.5, na.rm=TRUE)}
+hf <- function(x){quantile(x, 0.975, na.rm=TRUE)}
+
+
 #### VARYING INCOME ELASTICITY FOR LICs and LMICS ###
 
 vsl_sa <- res_full %>%

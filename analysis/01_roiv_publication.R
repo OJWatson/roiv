@@ -1,4 +1,4 @@
-setwd("~/documents/GitHub/roiv")
+setwd(here::here())
 library(tidyverse)
 library("MetBrewer")
 
@@ -232,7 +232,7 @@ write.csv(lg_sum, "analysis/tables/lg_sum.csv")
 total_vaccine <- vaccine_iso3c %>%
   summarise(vaccines = sum(vaccines, na.rm = TRUE))
 
-total_vaccines <- 2415645947
+total_vaccines <- total_vaccine$vaccines
 
 lg_pp_world <- res_full %>%
   filter(name == "deaths") %>%

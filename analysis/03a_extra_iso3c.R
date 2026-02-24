@@ -1,3 +1,5 @@
+
+setwd(here::here())
 vsl <- readRDS("analysis/data/derived/vsl.rds")
 vsly <- readRDS("analysis/data/derived/vsly.rds")
 qaly <- readRDS("analysis/data/derived/qaly.rds")
