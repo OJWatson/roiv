@@ -8,7 +8,10 @@ ranges <- list(
   wtp_lic = c(0,1),
   qaly_inf = c(0,1),
   qaly_hosp = c(0,1),
-  qaly_death = c(0,1),
+  qaly_icu = c(0,1),
+  prob_asymp_young = c(0,1), # proportion of asymptomatic cases 0-20 years
+  prob_asymp_adult = c(0,1), # proportion of asymptomatic cases 20-60 years
+  prob_asymp_elder = c(0,1), # proportion of asymptomatic cases 60+ years
   friction_period_hic = c(0,365) # need to double check
 )
 
@@ -80,31 +83,26 @@ shape1_hic <- mu_hic * (1 - mu_hic) / var_hic - 1
 shape2_hic <- (1 - mu_hic) * (shape1_hic)
 
 
-estimate_beta <- function(params) {
-   shape1 <- params[1]
-   shape2 <- params[2]
-  # Compute theoretical median and IQR from the beta distribution
-   median_theoretical <- qbeta(0.5, shape1, shape2)
-   iqr_theoretical <- qbeta(0.75, shape1, shape2) - qbeta(0.25, shape1, shape2)
+estimate_beta_params <- function(params, target_median, target_iqr) {
+  shape1 <- params[1]
+  shape2 <- params[2]
+  median_theoretical <- qbeta(0.5, shape1, shape2)
+  iqr_theoretical <- qbeta(0.75, shape1, shape2) - qbeta(0.25, shape1, shape2)
+  median_diff <- (median_theoretical - target_median)^2
+  iqr_diff <- (iqr_theoretical - target_iqr)^2
+  return(median_diff + iqr_diff)
+}
 
-  # Calculate squared differences
-   median_diff <- (median_theoretical - mu_hic)^2
-   iqr_diff <- (iqr_theoretical - iqr_hic)^2
-   return(median_diff + iqr_diff)
-  }
-
-# Use optimisation to find shape1 and shape2
-  optim_result_wtp_hic <- optim(
-      par = c(17.0831, 5.466593), # Initial guesses for shape1 and shape2
-      fn = estimate_beta,
-      method = "L-BFGS-B",
-      lower = c(0.01, 0.01) # Parameters must be positive
-    )
-
-  # Extract results
-   shape1_est_hic <- optim_result_wtp_hic$par[1]
-   shape2_est_hic <- optim_result_wtp_hic$par[2]
-
+optim_result_wtp_hic <- optim(
+  par = c(17.0831, 5.466593),
+  fn = estimate_beta_params,
+  target_median = 0.68,
+  target_iqr = 0.88 - 0.50,
+  method = "L-BFGS-B",
+  lower = c(0.01, 0.01)
+)
+shape1_est_hic <- optim_result_wtp_hic$par[1]
+shape2_est_hic <- optim_result_wtp_hic$par[2]
 wtp_hic_samples <- qbeta(lhs_samples[, 2], shape1 = shape1_est_hic, shape2 = shape2_est_hic)
 
 
@@ -116,32 +114,16 @@ shape1_umic <- mu_umic * (1 - mu_umic) / var_umic - 1
 shape2_umic <- (1 - mu_umic) * shape1_umic
 
 
-estimate_beta_WTP_umic <- function(params) {
-  shape1 <- params[1]
-  shape2 <- params[2]
-  # Compute theoretical median and IQR from the beta distribution
-  median_theoretical <- qbeta(0.5, shape1, shape2)
-  iqr_theoretical <- qbeta(0.75, shape1, shape2) - qbeta(0.25, shape1, shape2)
-
-  # Calculate squared differences
-  median_diff <- (median_theoretical - mu_umic)^2
-  iqr_diff <- (iqr_theoretical - iqr_umic)^2
-  return(median_diff + iqr_diff)
-}
-
-
-# Use optimisation to find shape1 and shape2
 optim_result_wtp_umic <- optim(
-  par = c(27.54688, 11.56969), # Initial guesses for shape1 and shape2
-  fn = estimate_beta,
+  par = c(27.54688, 11.56969),
+  fn = estimate_beta_params,
+  target_median = 0.58,
+  target_iqr = 0.76 - 0.44,
   method = "L-BFGS-B",
-  lower = c(0.01, 0.01) # Parameters must be positive
+  lower = c(0.01, 0.01)
 )
-
-# Extract results
 shape1_est_umic <- optim_result_wtp_umic$par[1]
 shape2_est_umic <- optim_result_wtp_umic$par[2]
-
 wtp_umic_samples <- qbeta(lhs_samples[, 3], shape1 = shape1_est_umic, shape2 = shape2_est_umic)
 
 # WTP for LMIC
@@ -167,16 +149,15 @@ estimate_beta_wtp_lmic <- function(params) {
 
 # Use optimisation to find shape1 and shape2
 optim_result_wtp_lmic <- optim(
-  par = c(42.68, 27.742), # Initial guesses for shape1 and shape2
-  fn = estimate_beta,
+  par = c(42.68, 27.742),
+  fn = estimate_beta_params,
+  target_median = 0.35,
+  target_iqr = 0.48 - 0.23,
   method = "L-BFGS-B",
-  lower = c(0.01, 0.01) # Parameters must be positive
+  lower = c(0.01, 0.01)
 )
-
-# Extract results
 shape1_est_lmic <- optim_result_wtp_lmic$par[1]
 shape2_est_lmic <- optim_result_wtp_lmic$par[2]
-
 wtp_lmic_samples <- qbeta(lhs_samples[, 4], shape1 = shape1_est_lmic, shape2 = shape2_est_lmic)
 
 # WTP for LIC
@@ -186,33 +167,24 @@ var_lic <- ((iqr_lic / 2)^2) / 3  # Variance approximation
 shape1_lic <- mu_lic * (1 - mu_lic) / var_lic - 1
 shape2_lic <- (1 - mu_lic) * shape1_lic
 
-estimate_beta_wtp_lic <- function(params) {
-  shape1 <- params[1]
-  shape2 <- params[2]
-  # Compute theoretical median and IQR from the beta distribution
-  median_theoretical <- qbeta(0.5, shape1, shape2)
-  iqr_theoretical <- qbeta(0.75, shape1, shape2) - qbeta(0.25, shape1, shape2)
-
-  # Calculate squared differences
-  median_diff <- (median_theoretical - mu_lic)^2
-  iqr_diff <- (iqr_theoretical - iqr_lic)^2
-  return(median_diff + iqr_diff)
-}
-
-
-# Use optimisation to find shape1 and shape2
+# LIC
 optim_result_wtp_lic <- optim(
-  par = c(110.6735, 84.11184), # Initial guesses for shape1 and shape2
-  fn = estimate_beta,
+  par = c(110.6735, 84.11184),
+  fn = estimate_beta_params,
+  target_median = 0.24,
+  target_iqr = 0.32 - 0.18,
   method = "L-BFGS-B",
-  lower = c(0.01, 0.01) # Parameters must be positive
+  lower = c(0.01, 0.01)
 )
-
-# Extract results
 shape1_est_lic <- optim_result_wtp_lic$par[1]
 shape2_est_lic <- optim_result_wtp_lic$par[2]
-
 wtp_lic_samples <- qbeta(lhs_samples[, 5], shape1 = shape1_est_lic, shape2 = shape2_est_lic)
+
+# check
+quantile(wtp_hic_samples,  c(0.25, 0.5, 0.75))  # should be ~0.50, 0.68, 0.88
+quantile(wtp_umic_samples, c(0.25, 0.5, 0.75))  # should be ~0.44, 0.58, 0.76
+quantile(wtp_lmic_samples, c(0.25, 0.5, 0.75))  # should be ~0.23, 0.35, 0.48
+quantile(wtp_lic_samples,  c(0.25, 0.5, 0.75))  # should be ~0.18, 0.24, 0.32
 
 # QALYS - beta distribution with mean and 95% CI
 
@@ -224,10 +196,13 @@ wtp_lic_samples <- qbeta(lhs_samples[, 5], shape1 = shape1_est_lic, shape2 = sha
 
 # QALY for infection
 # Calculate the variance from the range (lower, upper bounds) assuming a uniform Beta distribution
-mu_qaly_inf <- 0.007
-lower_qaly_inf <- 0.002
-upper_qaly_inf <- 0.011
-variance_qaly_inf <- (upper_qaly_inf - lower_qaly_inf)^2 / 12
+mu_qaly_inf <- 0.008
+lower_qaly_inf <- mu_qaly_inf * 0.75
+upper_qaly_inf <- mu_qaly_inf * 1.25
+
+# converting +/-25% range to SD
+sd_qaly_inf <- (upper_qaly_inf - lower_qaly_inf) / 3.92
+variance_qaly_inf <- sd_qaly_inf^2
 
 # Derive the Beta distribution shape parameters from mean and variance
 shape1_qaly_inf <- mu_qaly_inf * (mu_qaly_inf * (1 - mu_qaly_inf) / variance_qaly_inf - 1)
@@ -236,13 +211,17 @@ shape2_qaly_inf <- (1 - mu_qaly_inf) * (mu_qaly_inf * (1 - mu_qaly_inf) / varian
 # Generate the samples
 QALY_infection_samples <- qbeta(lhs_samples[, 6], shape1 = shape1_qaly_inf, shape2 = shape2_qaly_inf)
 
-# QALYs for hospitalisations
-mu_qaly_hosp <- 0.00009
-lower_qaly_hosp <- 0.00001
-upper_qaly_hosp <- 0.00028
+# check
+mean(QALY_infection_samples)
+quantile(QALY_infection_samples, c(0.025, 0.975))
 
-# Estimate variance assuming a uniform range for simplicity
-variance_qaly_hosp <- (upper_qaly_hosp - lower_qaly_hosp)^2 / 12
+# QALYs for hospitalisations
+mu_qaly_hosp <- 0.0201
+lower_qaly_hosp <- mu_qaly_hosp * 0.75
+upper_qaly_hosp <- mu_qaly_hosp * 1.25
+
+sd_qaly_hosp <- (upper_qaly_hosp - lower_qaly_hosp) / 3.92
+variance_qaly_hosp <- sd_qaly_hosp^2
 
 # Derive shape parameters from mean and variance
 shape1_qaly_hosp <- mu_qaly_hosp * (mu_qaly_hosp * (1 - mu_qaly_hosp) / variance_qaly_hosp - 1)
@@ -251,28 +230,95 @@ shape2_qaly_hosp <- (1 - mu_qaly_hosp) * (mu_qaly_hosp * (1 - mu_qaly_hosp) / va
 # Generate samples using the Beta distribution
 QALY_hospitalisations_samples <- qbeta(lhs_samples[, 7], shape1 = shape1_qaly_hosp, shape2 = shape2_qaly_hosp)
 
-# QALYs for deaths
-mu_qaly_death <- 0.048
-lower_qaly_death <- 0.011
-upper_qaly_death <- 0.106
+# check
+mean(QALY_hospitalisations_samples)
+quantile(QALY_hospitalisations_samples, c(0.025, 0.975))
 
-# Estimate variance assuming a uniform range for simplicity
-variance_qaly_death <- (upper_qaly_death - lower_qaly_death)^2 / 12
+# QALY for ICU
+# Calculate the variance from the range (lower, upper bounds) assuming a uniform Beta distribution
+mu_qaly_icu <- 0.15
+lower_qaly_icu <- mu_qaly_icu * 0.75
+upper_qaly_icu <- mu_qaly_icu * 1.25
 
-# Derive shape parameters from mean and variance
-shape1_qaly_death <- mu_qaly_death * (mu_qaly_death * (1 - mu_qaly_death) / variance_qaly_death - 1)
-shape2_qaly_death <- (1 - mu_qaly_death) * (mu_qaly_death * (1 - mu_qaly_death) / variance_qaly_death - 1)
+# converting +/-25% range to SD
+sd_qaly_icu <- (upper_qaly_icu - lower_qaly_icu) / 3.92
+variance_qaly_icu <- sd_qaly_icu^2
 
-# Generate samples using the Beta distribution
-QALY_deaths_samples <- qbeta(lhs_samples[, 8], shape1 = shape1_qaly_death, shape2 = shape2_qaly_death)
+# Derive the Beta distribution shape parameters from mean and variance
+shape1_qaly_icu <- mu_qaly_icu * (mu_qaly_icu * (1 - mu_qaly_icu) / variance_qaly_icu - 1)
+shape2_qaly_icu <- (1 - mu_qaly_icu) * (mu_qaly_icu * (1 - mu_qaly_icu) / variance_qaly_icu - 1)
+
+# Generate the samples
+QALY_icu_samples <- qbeta(lhs_samples[, 8], shape1 = shape1_qaly_icu, shape2 = shape2_qaly_icu)
+
+# check
+mean(QALY_icu_samples)
+quantile(QALY_icu_samples, c(0.025, 0.975))
 
 # check
 quantile(QALY_infection_samples, c(0.025, 0.975))
 quantile(QALY_hospitalisations_samples, c(0.025, 0.975))
-quantile(QALY_deaths_samples, c(0.025, 0.975))
+
+# Samples for asymptomatic probabilities
+# young
+mu_asymp_prob_young <- 0.467
+lower_asymp_prob_young <- 0.320
+upper_asymp_prob_young <- 0.620
+
+sd_asymp_prob_young <- (upper_asymp_prob_young - lower_asymp_prob_young) / 3.92
+var_asymp_prob_young <- sd_asymp_prob_young^2
+
+# Derive the Beta distribution shape parameters from mean and variance
+shape1_asymp_prob_young <- mu_asymp_prob_young * (mu_asymp_prob_young * (1 - mu_asymp_prob_young) / var_asymp_prob_young - 1)
+shape2_asymp_prob_young <- (1 - mu_asymp_prob_young) * (mu_asymp_prob_young * (1 - mu_asymp_prob_young) / var_asymp_prob_young - 1)
+
+# Generate the samples
+asymp_prob_young_samples <- qbeta(lhs_samples[, 9], shape1 = shape1_asymp_prob_young, shape2 = shape2_asymp_prob_young)
+
+# check
+mean(asymp_prob_young_samples)
+quantile(asymp_prob_young_samples, c(0.025, 0.975))
+
+# adult
+mu_asymp_prob_adult <- 0.321
+lower_asymp_prob_adult <- 0.222
+upper_asymp_prob_adult <- 0.439
+
+sd_asymp_prob_adult <- (upper_asymp_prob_adult - lower_asymp_prob_adult) / 3.92
+var_asymp_prob_adult <- sd_asymp_prob_adult^2
+
+# Derive the Beta distribution shape parameters from mean and variance
+shape1_asymp_prob_adult <- mu_asymp_prob_adult * (mu_asymp_prob_adult * (1 - mu_asymp_prob_adult) / var_asymp_prob_adult - 1)
+shape2_asymp_prob_adult <- (1 - mu_asymp_prob_adult) * (mu_asymp_prob_adult * (1 - mu_asymp_prob_adult) / var_asymp_prob_adult - 1)
+
+# Generate the samples
+asymp_prob_adult_samples <- qbeta(lhs_samples[, 10], shape1 = shape1_asymp_prob_adult, shape2 = shape2_asymp_prob_adult)
+
+# check
+mean(asymp_prob_adult_samples)
+quantile(asymp_prob_adult_samples, c(0.025, 0.975))
+
+# elder
+mu_asymp_prob_elder <- 0.197
+lower_asymp_prob_elder <- 0.127
+upper_asymp_prob_elder <- 0.294
+
+sd_asymp_prob_elder <- (upper_asymp_prob_elder - lower_asymp_prob_elder) / 3.92
+var_asymp_prob_elder <- sd_asymp_prob_elder^2
+
+# Derive the Beta distribution shape parameters from mean and variance
+shape1_asymp_prob_elder <- mu_asymp_prob_elder * (mu_asymp_prob_elder * (1 - mu_asymp_prob_elder) / var_asymp_prob_elder - 1)
+shape2_asymp_prob_elder <- (1 - mu_asymp_prob_elder) * (mu_asymp_prob_elder * (1 - mu_asymp_prob_elder) / var_asymp_prob_elder - 1)
+
+# Generate the samples
+asymp_prob_elder_samples <- qbeta(lhs_samples[, 11], shape1 = shape1_asymp_prob_elder, shape2 = shape2_asymp_prob_elder)
+
+# check
+mean(asymp_prob_elder_samples)
+quantile(asymp_prob_elder_samples, c(0.025, 0.975))
 
 # Friction periods for HICs
-frictionperiod_samples <- qnorm(lhs_samples[,9], 60.6, 14.8)
+frictionperiod_samples <- qnorm(lhs_samples[, 12], 60.6, 14.8)
 
 sens_df <- data.frame("replicate" = 1:100,
                       "vsl_samples" = vsl_samples,
@@ -282,7 +328,10 @@ sens_df <- data.frame("replicate" = 1:100,
                       "wtp_lic_samples" = wtp_lic_samples,
                       "QALY_infection_samples" = QALY_infection_samples,
                       "QALY_hospitalisations_samples" = QALY_hospitalisations_samples,
-                      "QALY_deaths_samples" = QALY_deaths_samples,
+                      "QALY_icu_samples" = QALY_icu_samples,
+                      "asymp_prob_young_samples" = asymp_prob_young_samples,
+                      "asymp_prob_adult_samples" = asymp_prob_adult_samples,
+                      "asymp_prob_elder_samples" = asymp_prob_elder_samples,
                       "frictionperiod_samples" = frictionperiod_samples)
 saveRDS(sens_df, "analysis/data/derived/psa_sens_df.rds")
 
@@ -363,28 +412,30 @@ write.csv(vsly_avertedtotals_psa, "analysis/tables/vsly_avertedtotals_psa.csv")
 
 qaly <- readRDS("analysis/data/derived/qaly.rds")
 
+
 # undiscounted
-sum_undiscmonqaly_psa <- qaly %>%
+  sum_undiscmonqaly_psa <- qaly %>%
   left_join(sens_df, by = "replicate") %>%
+  mutate(
+    # Map each age_group to the correct asymptomatic probability sample
+    prob_asymp = case_when(
+      age_group %in% c("0-5","5-10","10-15","15-20") ~ asymp_prob_young_samples,
+      age_group %in% c("20-25","25-30","30-35","35-40","40-45","45-50", "50-55", "55-60") ~ asymp_prob_adult_samples,
+      age_group %in% c("60-65","65-70","70-75","75-80","80+") ~ asymp_prob_elder_samples,
+      TRUE ~ NA_real_  # Safety catch for unexpected age_group
+    )) %>%
   mutate(wtp = case_when(
     income_group == "HIC" ~ wtp_hic_samples,
     income_group == "UMIC" ~ wtp_umic_samples,
     income_group == "LMIC" ~ wtp_lmic_samples,
     income_group == "LIC" ~ wtp_lic_samples)) %>%
-  mutate(qaly_loss = case_when(
-    name == "infections" ~ QALY_infection_samples,
-    name == "hospitalisations" ~ QALY_hospitalisations_samples,
-    name == "deaths" ~ QALY_deaths_samples
-  )) %>%
   mutate(wtp_threshold = wtp*gdppc) %>%
   mutate(undiscmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * (qaly_loss) * wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * (qaly_loss) * wtp_threshold,
-    name == "deaths" ~ (((averted * qaly_loss) + lg_averted)
-                        * wtp_threshold)
-  )) %>%
+    name == "infections" ~ ((averted * (1 - prob_asymp)) * QALY_infection_samples) * wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * QALY_icu_samples) +
+      (nonicu_averted * QALY_hospitalisations_samples)) * wtp_threshold,
+    name == "deaths" ~ lg_averted
+                        * wtp_threshold)) %>%
   group_by(replicate) %>%
   summarise(undiscmonqalys_averted_sum = sum(undiscmonqalys_averted, na.rm=TRUE)) %>%
   summarise(
@@ -402,25 +453,26 @@ write.csv(sum_undiscmonqaly_psa, "analysis/tables/sum_undiscmonqaly_psa.csv")
 # discounted
 sum_discmonqaly_psa <- qaly %>%
   left_join(sens_df, by = "replicate") %>%
+  mutate(
+    # Map each age_group to the correct asymptomatic probability sample
+    prob_asymp = case_when(
+      age_group %in% c("0-5","5-10","10-15","15-20") ~ asymp_prob_young_samples,
+      age_group %in% c("20-25","25-30","30-35","35-40","40-45","45-50","55-60") ~ asymp_prob_adult_samples,
+      age_group %in% c("60-65","65-70","70-75","75-80","80+") ~ asymp_prob_elder_samples,
+      TRUE ~ NA_real_  # Safety catch for unexpected age_group
+    )) %>%
   mutate(wtp = case_when(
     income_group == "HIC" ~ wtp_hic_samples,
     income_group == "UMIC" ~ wtp_umic_samples,
     income_group == "LMIC" ~ wtp_lmic_samples,
     income_group == "LIC" ~ wtp_lic_samples)) %>%
-  mutate(qaly_loss = case_when(
-    name == "infections" ~ QALY_infection_samples,
-    name == "hospitalisations" ~ QALY_hospitalisations_samples,
-    name == "deaths" ~ QALY_deaths_samples
-  )) %>%
   mutate(wtp_threshold = wtp*gdppc) %>%
   mutate(discmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * (qaly_loss) * wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * (qaly_loss) * wtp_threshold,
-    name == "deaths" ~ (((averted * qaly_loss) + lghat_averted)
-                        * wtp_threshold)
-  )) %>%
+    name == "infections" ~ ((averted * (1 - prob_asymp)) * QALY_infection_samples) * wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * QALY_icu_samples) +
+      (nonicu_averted * QALY_hospitalisations_samples)) * wtp_threshold,
+    name == "deaths" ~ lghat_averted
+    * wtp_threshold)) %>%
   group_by(replicate) %>%
   summarise(discmonqalys_averted_sum = sum(discmonqalys_averted, na.rm=TRUE)) %>%
   summarise(
@@ -555,25 +607,24 @@ write.csv(new_roi_vsl_psa, "analysis/tables/new_roi_vsl_psa.csv")
 
 # welfarist - VSLYs
 # calculate undiscounted welfarist roi
-roi_undiscwelfarist_psa <- vsly_avertedtotals_psa %>%
-  mutate(roi_low = ((vsly_undisc_averted_low - (vaccine_costs))/(vaccine_costs)),
-         roi_med = ((vsly_undisc_averted_med - (vaccine_costs))/(vaccine_costs)),
-         roi_high = ((vsly_undisc_averted_high - (vaccine_costs))/(vaccine_costs))) %>%
+
+vsly_hc_pc_psa <- bind_cols(vsly_avertedtotals_psa, friction_costs_psa, sum_hc_costs) %>%
+  summarise(
+    total_low = vsly_undisc_averted_low + friction_costs_low + hc_costs_total_low,
+    total_med = vsly_undisc_averted_med + friction_costs_med + hc_costs_total_med,
+    total_high = vsly_undisc_averted_high + friction_costs_high + hc_costs_total_high
+  )
+
+vsly_hc_pc_psa
+write.csv(vsly_hc_pc_psa, "analysis/tables/vsly_hc_pc_psa.csv")
+
+roi_undiscwelfarist_psa <- vsly_hc_pc_psa %>%
+  mutate(roi_low = ((total_low - (vaccine_costs))/(vaccine_costs)),
+         roi_med = ((total_med - (vaccine_costs))/(vaccine_costs)),
+         roi_high = ((total_high - (vaccine_costs))/(vaccine_costs))) %>%
   select(roi_low, roi_med, roi_high)
 
 # save results
 roi_undiscwelfarist_psa
 write.csv(roi_undiscwelfarist_psa, "analysis/tables/roi_undiscwelfarist_psa.csv")
-
-
-# calculate discounted extrawelfarist roi
-roi_discwelfarist_psa <- vsly_avertedtotals_psa %>%
-  mutate(roi_low = ((vsly_disc_averted_low - (vaccine_costs))/(vaccine_costs)),
-         roi_med = ((vsly_disc_averted_med - (vaccine_costs))/(vaccine_costs)),
-         roi_high = ((vsly_disc_averted_high - (vaccine_costs))/(vaccine_costs))) %>%
-  select(roi_low, roi_med, roi_high)
-
-# save results
-roi_discwelfarist_psa
-write.csv(roi_discwelfarist_psa, "analysis/tables/roi_discwelfarist_psa.csv")
 
