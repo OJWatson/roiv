@@ -1,6 +1,9 @@
 ## NOTE: RUN FILE "extra_iso3c.R" to create maps
 setwd(here::here())
 
+### NOTE: ANY REFERENCE TO EXTRAWELFARIST CORRESPONDS WITH THE COST-EFFECTIVENESS ANALYSIS (CEA),
+# IN THE STUDY AND ANY REFERENCE TO WELFARIST CORRESPONDS WITH THE COST-BENEFIT ANALYSIS (CBA)
+
 undiscvsly_pp_gdppc_iso3c <- read.csv("analysis/tables/undiscvsly_pp_gdppc_iso3c.csv")
 discvsly_pp_gdppc_iso3c <- read.csv("analysis/tables/discvsly_pp_gdppc_iso3c.csv")
 undiscmonqaly_pp_gdppc_iso3c <- read.csv("analysis/tables/undiscmonqaly_pp_gdppc_iso3c.csv")
