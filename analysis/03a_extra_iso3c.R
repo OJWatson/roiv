@@ -267,7 +267,7 @@ hosp_qaly_iso3c <- qaly %>%
 
 # our results table which we can then save in the tables directory
 hosp_qaly_iso3c
-write.csv(hosp_qaly_iso3c, "analysis/tables/hosp_qaly_iso3c")
+write.csv(hosp_qaly_iso3c, "analysis/tables/hosp_qaly_iso3c.csv")
 
 # calculating monetized QALYs averted for hospitalisations for each iso3c
 hosp_monqaly_iso3c <- qaly %>%
