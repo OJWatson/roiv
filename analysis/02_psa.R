@@ -460,7 +460,7 @@ sum_discmonqaly_psa <- qaly %>%
     # Map each age_group to the correct asymptomatic probability sample
     prob_asymp = case_when(
       age_group %in% c("0-5","5-10","10-15","15-20") ~ asymp_prob_young_samples,
-      age_group %in% c("20-25","25-30","30-35","35-40","40-45","45-50","50-55","55-60") ~ asymp_prob_adult_samples,
+      age_group %in% c("20-25","25-30","30-35","35-40","40-45","45-50","55-60") ~ asymp_prob_adult_samples,
       age_group %in% c("60-65","65-70","70-75","75-80","80+") ~ asymp_prob_elder_samples,
       TRUE ~ NA_real_  # Safety catch for unexpected age_group
     )) %>%

@@ -1209,10 +1209,10 @@ age_probs <- age_probs %>%
     age_group == "50-55" ~ 0.321,
     age_group == "55-60" ~ 0.321,
     age_group == "60-65" ~ 0.197,
-    age_group == "65-70" ~ 0.197,
-    age_group == "70-75" ~ 0.197,
-    age_group == "75-80" ~ 0.197,
-    age_group == "80+" ~ 0.197
+    age_group == "65-70" ~ 0.321,
+    age_group == "70-75" ~ 0.321,
+    age_group == "75-80" ~ 0.321,
+    age_group == "80+" ~ 0.321
   ))
 
 qaly <- qaly %>%
