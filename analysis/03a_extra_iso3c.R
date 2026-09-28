@@ -1,10 +1,26 @@
 setwd(here::here())
+library(tidyverse)
+
+lf <- function(x){quantile(x, 0.025, na.rm=TRUE)}
+mf <- function(x){quantile(x, 0.5, na.rm=TRUE)}
+hf <- function(x){quantile(x, 0.975, na.rm=TRUE)}
+
+qaly_loss_infections <- 0.008
+qaly_loss_hospitalisations <- 0.0201
+qaly_loss_icu <- 0.15
+
 vsl <- readRDS("analysis/data/derived/vsl.rds")
 vsly <- readRDS("analysis/data/derived/vsly.rds")
 qaly <- readRDS("analysis/data/derived/qaly.rds")
 friction_costs <- readRDS("analysis/data/derived/friction_costs.rds")
 hc_costs_grouped <- readRDS("analysis/data/derived/hc_costs.rds")
 res_full <- readRDS("analysis/data/derived/res_full.rds")
+vaccine_iso3c <- readRDS("analysis/data/derived/vaccine_iso3c.rds")
+gdp <- vaccine_iso3c %>%
+  left_join(read_csv("analysis/data/raw/GDP_iso3c.csv"), by = "iso3c") %>%
+  select(iso3c, income_group, gdp, Ng)
+gdppc <- gdp %>%
+  mutate(gdppc = gdp / Ng)
 
 ### NOTE: ANY REFERENCE TO EXTRAWELFARIST CORRESPONDS WITH THE COST-EFFECTIVENESS ANALYSIS (CEA),
 # IN THE STUDY AND ANY REFERENCE TO WELFARIST CORRESPONDS WITH THE COST-BENEFIT ANALYSIS (CBA)
@@ -837,7 +853,7 @@ undisc_exwelfarist_pp_gdppc_iso3c <- undisc_extrawelfarist_sum_iso3c %>%
   left_join(gdppc %>% group_by (iso3c) %>% summarise(gdppc = mean(gdppc, na.rm = TRUE)))%>%
   mutate(undisc_exwelf_low = (((undisc_exwelf_total_low / vaccines) / gdppc) * 100),
          undisc_exwelf_med = (((undisc_exwelf_total_med / vaccines) / gdppc) * 100),
-         undisc_exwelf_high = (((undisc_exwelf_total_low / vaccines) / gdppc) * 100)) %>%
+         undisc_exwelf_high = (((undisc_exwelf_total_high / vaccines) / gdppc) * 100)) %>%
   select(iso3c, undisc_exwelf_low, undisc_exwelf_med, undisc_exwelf_high)
 
 # our results table which we can then save in the tables directory
@@ -871,7 +887,7 @@ disc_exwelfarist_pp_gdppc_iso3c <- disc_exwelfarist_sum_iso3c %>%
   left_join(gdppc %>% group_by (iso3c) %>% summarise(gdppc = mean(gdppc, na.rm = TRUE)))%>%
   mutate(disc_exwelf_low = (((disc_exwelf_total_low / vaccines) / gdppc) * 100),
          disc_exwelf_med = (((disc_exwelf_total_med / vaccines) / gdppc) * 100),
-         disc_exwelf_high = (((disc_exwelf_total_low / vaccines) / gdppc) * 100)) %>%
+         disc_exwelf_high = (((disc_exwelf_total_high / vaccines) / gdppc) * 100)) %>%
   select(iso3c, disc_exwelf_low, disc_exwelf_med, disc_exwelf_high)
 
 # our results table which we can then save in the tables directory

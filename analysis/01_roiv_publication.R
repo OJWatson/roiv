@@ -62,11 +62,6 @@ res_full <- res_full %>%
     by = "iso3c"
   )
 
-# change to be income groups from 2021
-devtools::install_github("mrc-ide/squire")
-devtools::install_github("mrc-ide/nimue")
-devtools::install_github("mrc-ide/squire.page")
-
 res_full$income_group <- squire.page::get_income_group(res_full$iso3c)
 
 # remove economy and lending category, and re-order columns

@@ -1,7 +1,10 @@
 #### READING IN DATA AND FUNCTIONS ###
 
 setwd(here::here())
+library(tidyverse)
+
 res_full <- readRDS("analysis/data/derived/res_full.rds")
+vsl_avertedtotal <- readRDS("analysis/data/derived/vsl_avertedtotal.rds")
 sum_friction <- read.csv("analysis/tables/sum_friction.csv")[,-1]
 sum_hc_costs <- read.csv("analysis/tables/sum_hc_costs.csv")[,-1]
 

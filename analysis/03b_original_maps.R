@@ -1,5 +1,16 @@
 ## NOTE: RUN FILE "extra_iso3c.R" to create maps
 setwd(here::here())
+library(tidyverse)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+library(MetBrewer)
+library(cowplot)
+
+devtools::load_all()
 
 ### NOTE: ANY REFERENCE TO EXTRAWELFARIST CORRESPONDS WITH THE COST-EFFECTIVENESS ANALYSIS (CEA),
 # IN THE STUDY AND ANY REFERENCE TO WELFARIST CORRESPONDS WITH THE COST-BENEFIT ANALYSIS (CBA)
@@ -11,6 +22,12 @@ discmonqaly_pp_gdppc_iso3c <- read.csv("analysis/tables/discmonqaly_pp_gdppc_iso
 friction_pp_gdppc_iso3c <- read.csv("analysis/tables/friction_pp_gdppc_iso3c.csv")
 vsl_pp_gdppc_iso3c <- read.csv("analysis/tables/vsl_pp_gdppc_iso3c.csv")
 hccosts_pp_gdppc_iso3c <- read.csv("analysis/tables/hccosts_pp_gdppc_iso3c.csv")
+sum_undiscmonqaly_iso3c <- read.csv("analysis/tables/sum_undiscmonqaly_iso3c.csv")
+sum_discmonqaly_iso3c <- read.csv("analysis/tables/sum_discmonqaly_iso3c.csv")
+friction_sum_iso3c <- read.csv("analysis/tables/friction_sum_iso3c.csv")
+hc_costs_total_iso3c <- read.csv("analysis/tables/hc_costs_total_iso3c.csv")
+sum_vsl_iso3c <- read.csv("analysis/tables/sum_vsl_iso3c.csv")
+new_welfarist_pp_pgdp_iso3c <- read.csv("analysis/tables/new_welfarist_pp_pgdp_iso3c.csv")
 
 vaccine_iso3c <- readRDS("analysis/data/derived/vaccine_iso3c.rds")
 gdppc <- vaccine_iso3c %>%
@@ -43,7 +60,7 @@ undisc_exwelfarist_pp_gdppc_iso3c <- undisc_extrawelfarist_sum_iso3c %>%
   left_join(gdppc %>% group_by (iso3c) %>% summarise(gdppc = mean(gdppc, na.rm = TRUE)))%>%
   mutate(undisc_exwelf_low = (((undisc_exwelf_total_low / vaccines) / gdppc) * 100),
          undisc_exwelf_med = (((undisc_exwelf_total_med / vaccines) / gdppc) * 100),
-         undisc_exwelf_high = (((undisc_exwelf_total_low / vaccines) / gdppc) * 100)) %>%
+         undisc_exwelf_high = (((undisc_exwelf_total_high / vaccines) / gdppc) * 100)) %>%
   select(iso3c, undisc_exwelf_low, undisc_exwelf_med, undisc_exwelf_high)
 
 # our results table which we can then save in the tables directory
@@ -77,7 +94,7 @@ disc_exwelfarist_pp_gdppc_iso3c <- disc_exwelfarist_sum_iso3c %>%
   left_join(gdppc %>% group_by (iso3c) %>% summarise(gdppc = mean(gdppc, na.rm = TRUE)))%>%
   mutate(disc_exwelf_low = (((disc_exwelf_total_low / vaccines) / gdppc) * 100),
          disc_exwelf_med = (((disc_exwelf_total_med / vaccines) / gdppc) * 100),
-         disc_exwelf_high = (((disc_exwelf_total_low / vaccines) / gdppc) * 100)) %>%
+         disc_exwelf_high = (((disc_exwelf_total_high / vaccines) / gdppc) * 100)) %>%
   select(iso3c, disc_exwelf_low, disc_exwelf_med, disc_exwelf_high)
 
 # our results table which we can then save in the tables directory
@@ -129,15 +146,6 @@ disc_welf_pp_pgdppc <- discvsly_pp_gdppc_iso3c
 
 
 ################ two seperate maps###############
-
-library(sf)
-library(rnaturalearth)
-library(rnaturalearthdata)
-library(ggplot2)
-library(dplyr)
-library(patchwork)
-library(MetBrewer)  # Ensure this library is installed
-library(cowplot)  # For adding labels A and B
 
 # Define your color palettes
 palette_welfarist <- met.brewer("Archambault")
