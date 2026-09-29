@@ -2,6 +2,9 @@ setwd(here::here())
 
 ##########################
 # Combined Maps: Discounted Extra-Welfarist vs New Welfarist (Stacked, separate scales)
+
+### NOTE: ANY REFERENCE TO EXTRAWELFARIST CORRESPONDS WITH THE COST-EFFECTIVENESS ANALYSIS (CEA),
+# IN THE STUDY AND ANY REFERENCE TO WELFARIST CORRESPONDS WITH THE COST-BENEFIT ANALYSIS (CBA)
 ##########################
 
 library(sf)
@@ -104,9 +107,9 @@ disc_exwelf_plot <- ggplot() +
           aes(fill = value), color = "grey30", size = 0.2) +
   scale_fill_gradientn(colors = palette_signac,
                        limits = c(min_disc_exwelf, max_disc_exwelf),
-                       name = "Benefits \n(% GDP per person)") +
+                       name = "Benefits \n(% GDP per capita)") +
   theme_minimal() +
-  labs(title = "Extra-welfarist approach") +
+  labs(title = "Cost-effectiveness analysis") +
   theme(axis.text = element_blank(), panel.grid = element_blank(),
         plot.title = element_text(hjust = 0.5, size = 12))
 
@@ -116,16 +119,16 @@ new_welf_plot <- ggplot() +
           aes(fill = value), color = "grey30", size = 0.2) +
   scale_fill_gradientn(colors = palette_signac,
                        limits = c(min_new_welf, max_new_welf),
-                       name = "Benefits \n(% GDP per person)") +
+                       name = "Benefits \n(% GDP per capita)") +
   theme_minimal() +
-  labs(title = "Welfarist approach") +
+  labs(title = "Cost-benefit analysis") +
   theme(axis.text = element_blank(), panel.grid = element_blank(),
         plot.title = element_text(hjust = 0.5, size = 12))
 
 # ------------------------
 # Combine maps stacked vertically with labels A and B
 # ------------------------
-combined_plot <- disc_exwelf_plot / new_welf_plot +
+combined_plot <- new_welf_plot / disc_exwelf_plot +
   plot_annotation(tag_levels = "A")  # separate legends by default
 
 # ------------------------
@@ -163,9 +166,9 @@ undisc_exwelfarist_plot <- ggplot() +
           aes(fill = value), color = "grey30", size = 0.2) +
   scale_fill_gradientn(colors = met.brewer("Signac"),
                        limits = c(min_undisc_exwelf, max_undisc_exwelf),
-                       name = "Benefits \n(% GDP per person)") +
+                       name = "Benefits \n(% GDP per capita)") +
   theme_minimal() +
-  labs(title = "Extra-welfarist approach") +
+  labs(title = "Cost-effectiveness analysis") +
   theme(axis.text = element_blank(),
         panel.grid = element_blank(),
         plot.title = element_text(hjust = 0.5, size = 12),

@@ -62,11 +62,6 @@ res_full <- res_full %>%
     by = "iso3c"
   )
 
-# change to be income groups from 2021
-devtools::install_github("mrc-ide/squire")
-devtools::install_github("mrc-ide/nimue")
-devtools::install_github("mrc-ide/squire.page")
-
 res_full$income_group <- squire.page::get_income_group(res_full$iso3c)
 
 # remove economy and lending category, and re-order columns
@@ -632,7 +627,7 @@ inf_pp_income <- res_full %>%
 
 # our results table which we can then save in the tables directory
 inf_pp_income
-write.csv(inf_pp_income, "analysis/tables/inf_pp_income")
+write.csv(inf_pp_income, "analysis/tables/inf_pp_income.csv")
 
 # *****************
 # VSL and VSLY calculations
@@ -1181,26 +1176,63 @@ qaly <- qaly %>%
   mutate(lower_wtp_threshold = wtp_lower_IQR * gdppc) %>%
   mutate(upper_wtp_threshold = wtp_upper_IQR * gdppc)
 
-# read in qaly loss data
+# apply qaly loss values
+qaly_loss_infections <- 0.008
+qaly_loss_hospitalisations <- 0.0201
+qaly_loss_icu <- 0.15
+
+# probabilities to data frame for severity of infections and hospitalisations
+probs <- squire::default_probs()
+probs$prob_severe
+
+age_probs <- data.frame(
+  age_group = c("0-5","5-10","10-15","15-20",
+                "20-25","25-30","30-35","35-40",
+                "40-45","45-50","50-55","55-60",
+                "60-65","65-70","70-75","75-80",
+                "80+"),
+  prob_severe = probs$prob_severe
+)
+
+age_probs <- age_probs %>%
+  mutate(prob_asymp = case_when(
+    age_group == "0-5" ~ 0.467,
+    age_group == "5-10" ~ 0.467,
+    age_group == "10-15" ~ 0.467,
+    age_group == "15-20" ~ 0.467,
+    age_group == "20-25" ~ 0.321,
+    age_group == "25-30" ~ 0.321,
+    age_group == "30-35" ~ 0.321,
+    age_group == "35-40" ~ 0.321,
+    age_group == "40-45" ~ 0.321,
+    age_group == "45-50" ~ 0.321,
+    age_group == "50-55" ~ 0.321,
+    age_group == "55-60" ~ 0.321,
+    age_group %in% c("60-65", "65-70", "70-75", "75-80", "80+") ~ 0.197
+  ))
+
 qaly <- qaly %>%
-  left_join(
-    read_csv("analysis/data/raw/qaly_losses.csv"),
-    by = "name")
+  left_join(age_probs, by = "age_group")
+stopifnot(!any(is.na(qaly$prob_asymp)))
+
+# add new column for ICU hospitalisations (severe)
+qaly <- qaly %>%
+  mutate(icu_averted = averted * prob_severe) %>%
+  mutate(nonicu_averted = averted - icu_averted) %>%
+  # adding symptomatic cases column
+  mutate(symp_infections = averted * (1 - prob_asymp))
 
 saveRDS(qaly, "analysis/data/derived/qaly.rds")
 
-# read in duration data (in days)
 
+# read in duration data (in days)
 infections_duration <- 5
 hospitalisations_duration <- 12
 
-
-# calculating number of QALYs averted for infections for each income group
-
+# calculating number of QALYs each income group
 inf_qaly_income <- qaly %>%
   filter(name == "infections") %>%
-  mutate(averted_inf_qalys = averted *
-           -(qaly_loss)) %>%
+  mutate(averted_inf_qalys = symp_infections * qaly_loss_infections) %>%
   group_by(income_group, replicate) %>%
   summarise(averted_inf_qalys = sum(averted_inf_qalys, na.rm = TRUE)) %>%
   group_by(income_group) %>%
@@ -1219,8 +1251,7 @@ write.csv(inf_qaly_income, "analysis/tables/inf_qaly_income.csv")
 # calculating monetized QALYs averted for infections for each income group
 inf_monqaly_income <- qaly %>%
   filter(name == "infections") %>%
-  mutate(averted_inf_qalys = averted
-         * -(qaly_loss)) %>%
+  mutate(averted_inf_qalys = symp_infections * qaly_loss_infections) %>%
   mutate(averted_inf_monqalys = averted_inf_qalys * median_wtp_threshold) %>%
   group_by(income_group, replicate) %>%
   summarise(averted_inf_monqalys = sum(averted_inf_monqalys, na.rm = TRUE)) %>%
@@ -1240,9 +1271,9 @@ write.csv(inf_monqaly_income, "analysis/tables/inf_monqaly_income.csv")
 
 # caclulating number of QALYs averted for hospitalisations for each income group
 hosp_qaly_income <- qaly %>%
-  filter(name == "infections") %>%
-  mutate(averted_hosp_qalys = averted
-         * -(qaly_loss)) %>%
+  filter(name == "hospitalisations") %>%
+  mutate(averted_hosp_qalys = (nonicu_averted
+         * qaly_loss_hospitalisations) + (icu_averted * qaly_loss_icu)) %>%
   group_by(income_group, replicate) %>%
   summarise(averted_hosp_qalys = sum(averted_hosp_qalys, na.rm = TRUE)) %>%
   group_by(income_group) %>%
@@ -1260,9 +1291,9 @@ write.csv(hosp_qaly_income, "analysis/tables/hosp_qaly_income.csv")
 
 # calculating monetized QALYs averted for hospitalisations for each income group
 hosp_monqaly_income <- qaly %>%
-  filter(name == "infections") %>%
-  mutate(averted_hosp_qalys = averted
-         * -(qaly_loss)) %>%
+  filter(name == "hospitalisations") %>%
+  mutate(averted_hosp_qalys = (nonicu_averted
+                               * qaly_loss_hospitalisations) + (icu_averted * qaly_loss_icu)) %>%
   mutate(averted_hosp_monqalys = averted_hosp_qalys * median_wtp_threshold) %>%
   group_by(income_group, replicate) %>%
   summarise(averted_hosp_monqalys = sum(averted_hosp_monqalys, na.rm = TRUE)) %>%
@@ -1283,7 +1314,7 @@ write.csv(hosp_monqaly_income, "analysis/tables/hosp_monqaly_income.csv")
 # calculating number of QALYs averted for deaths for each income group
 deaths_undiscqaly_income <- qaly %>%
   filter(name == "deaths") %>%
-  mutate(averted_deaths_undiscqalys = ((averted * -qaly_loss) + lg_averted)) %>%
+  mutate(averted_deaths_undiscqalys = lg_averted) %>%
   group_by(income_group, replicate) %>%
   summarise(averted_deaths_undiscqalys = sum(averted_deaths_undiscqalys, na.rm = TRUE)) %>%
   group_by(income_group) %>%
@@ -1302,7 +1333,7 @@ write.csv(deaths_undiscqaly_income, "analysis/tables/deaths_undiscqaly_income.cs
 # calculating undiscounted monetized QALYs averted for deaths for each income group
 deaths_undiscmonqaly_income <- qaly %>%
   filter(name == "deaths") %>%
-  mutate(averted_deaths_undiscqalys = ((averted * -qaly_loss) + lg_averted)) %>%
+  mutate(averted_deaths_undiscqalys = lg_averted) %>%
   mutate(averted_deaths_undiscmonqalys = (averted_deaths_undiscqalys * median_wtp_threshold)) %>%
   group_by(income_group, replicate) %>%
   summarise(averted_deaths_undiscmonqalys = sum(averted_deaths_undiscmonqalys, na.rm = TRUE)) %>%
@@ -1322,11 +1353,10 @@ write.csv(deaths_undiscmonqaly_income, "analysis/tables/deaths_undiscmonqaly_inc
 # sum of qalys for infections, hospitalisations, deaths per income group
 sum_undiscqaly_income <- qaly %>%
   mutate(qalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss),
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss),
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted))
+    name == "infections" ~ symp_infections
+    * qaly_loss_infections,
+    name == "hospitalisations" ~ (icu_averted * qaly_loss_icu) + (nonicu_averted * qaly_loss_hospitalisations),
+    name == "deaths" ~ lg_averted
   )) %>%
   group_by(income_group, replicate) %>%
   summarise(undiscqalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
@@ -1351,11 +1381,10 @@ write.csv(sum_undiscqaly_income, "analysis/tables/sum_undiscqaly_income.csv")
 # sum world wide
 sum_undiscqaly <- qaly %>%
   mutate(qalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss),
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss),
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted))
+    name == "infections" ~ symp_infections
+    * qaly_loss_infections,
+    name == "hospitalisations" ~ (icu_averted * qaly_loss_icu) + (nonicu_averted * qaly_loss_hospitalisations),
+    name == "deaths" ~ lg_averted
   )) %>%
   group_by(replicate) %>%
   summarise(undiscqalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
@@ -1374,11 +1403,10 @@ write.csv(sum_undiscqaly, "analysis/tables/sum_undiscqaly.csv")
 # undiscounted qalys per person worldwide
 sum_undiscqaly_pp <- qaly %>%
   mutate(qalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss),
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss),
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted))
+    name == "infections" ~ symp_infections
+    * qaly_loss_infections,
+    name == "hospitalisations" ~ (icu_averted * qaly_loss_icu) + (nonicu_averted * qaly_loss_hospitalisations),
+    name == "deaths" ~ lg_averted
   )) %>%
   group_by(replicate) %>%
   summarise(undiscqalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
@@ -1399,11 +1427,10 @@ write.csv(sum_undiscqaly_pp, "analysis/tables/sum_undiscqaly_pp.csv")
 # get qaly's per-person vaccinated per income group
 undiscqaly_pp_income <- qaly %>%
   mutate(undiscqaly_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss),
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss),
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted))
+    name == "infections" ~ symp_infections
+    * qaly_loss_infections,
+    name == "hospitalisations" ~ (icu_averted * qaly_loss_icu) + (nonicu_averted * qaly_loss_hospitalisations),
+    name == "deaths" ~ lg_averted
   )) %>%
   group_by(income_group, replicate) %>%
   summarise(undiscqaly_averted = sum(undiscqaly_averted, na.rm = TRUE)) %>%
@@ -1430,12 +1457,11 @@ write.csv(undiscqaly_pp_income, "analysis/tables/undiscqaly_pp_income.csv")
 # get total monetized qalys per income group
 sum_undiscmonqaly_income <- qaly %>%
   mutate(undiscmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+    * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lg_averted * median_wtp_threshold
   )) %>%
   group_by(income_group, replicate) %>%
   summarise(undiscmonqalys_averted_sum = sum(undiscmonqalys_averted, na.rm=TRUE)) %>%
@@ -1465,12 +1491,11 @@ write.csv(sum_undiscmonqaly_income, "analysis/tables/sum_undiscmonqaly_income.cs
 # get mean undiscounted monetized qalys in percentage of gdp per income group
 undiscmonqaly_pgdp_income <- qaly %>%
   mutate(undiscmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lg_averted * median_wtp_threshold
   )) %>%
   group_by(income_group, replicate) %>%
   summarise(undiscmonqaly_total = sum(undiscmonqalys_averted, na.rm = TRUE)) %>%
@@ -1501,7 +1526,7 @@ write.csv(undiscmonqaly_pgdp_income, "analysis/tables/undiscmonqaly_pgdp_income.
 # calculating number of QALYs averted for deaths for each income group
 deaths_discqaly_income <- qaly %>%
   filter(name == "deaths") %>%
-  mutate(averted_deaths_discqalys = ((averted * -qaly_loss) + lghat_averted)) %>%
+  mutate(averted_deaths_discqalys = lghat_averted) %>%
   group_by(income_group, replicate) %>%
   summarise(averted_deaths_discqalys = sum(averted_deaths_discqalys)) %>%
   group_by(income_group) %>%
@@ -1525,7 +1550,7 @@ write.csv(deaths_discqaly_income, "analysis/tables/deaths_discqaly_income.csv")
 # calculating monetized QALYs averted for deaths for each income group
 deaths_discmonqaly_income <- qaly %>%
   filter(name == "deaths") %>%
-  mutate(averted_deaths_discqalys = ((averted * -qaly_loss) + lghat_averted)) %>%
+  mutate(averted_deaths_discqalys = lghat_averted) %>%
   mutate(averted_deaths_discmonqalys = (averted_deaths_discqalys * median_wtp_threshold)) %>%
   group_by(income_group, replicate) %>%
   summarise(averted_deaths_discmonqalys = sum(averted_deaths_discmonqalys, na.rm = TRUE)) %>%
@@ -1550,11 +1575,11 @@ write.csv(deaths_discmonqaly_income, "analysis/tables/deaths_discmonqaly_income.
 # sum of qalys for infections, hospitalisations, deaths per income group
 sum_discqaly_income <- qaly %>%
   mutate(qalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss),
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss),
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted))
+    name == "infections" ~ symp_infections
+                            * qaly_loss_infections,
+    name == "hospitalisations" ~ (icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations),
+    name == "deaths" ~ lghat_averted
   )) %>%
   group_by(income_group, replicate) %>%
   summarise(discqalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
@@ -1583,11 +1608,11 @@ write.csv(sum_discqaly_income, "analysis/tables/sum_discqaly_income.csv")
 # get discounted qaly's per-person vaccinated per income group
 discqaly_pp_income <- qaly %>%
   mutate(discqaly_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss),
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss),
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted))
+    name == "infections" ~ symp_infections
+    * qaly_loss_infections,
+    name == "hospitalisations" ~ (icu_averted * qaly_loss_icu) +
+      (nonicu_averted * qaly_loss_hospitalisations),
+    name == "deaths" ~ lghat_averted
   )) %>%
   group_by(income_group, replicate) %>%
   summarise(discqaly_averted = sum(discqaly_averted, na.rm = TRUE)) %>%
@@ -1614,12 +1639,11 @@ write.csv(discqaly_pp_income, "analysis/tables/discqaly_pp_income.csv")
 # get total monetized qalys per income group
 sum_discmonqaly_income <- qaly %>%
   mutate(discmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+    * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+      (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lghat_averted * median_wtp_threshold
   )) %>%
   group_by(income_group, replicate) %>%
   summarise(discmonqalys_averted_sum = sum(discmonqalys_averted, na.rm=TRUE)) %>%
@@ -1648,12 +1672,11 @@ write.csv(sum_discmonqaly_income, "analysis/tables/sum_discmonqaly_income.csv")
 # get mean monetized qalys in proportion of gdp per income group
 discmonqaly_pgdp_income <- qaly %>%
   mutate(discmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lghat_averted * median_wtp_threshold
   )) %>%
   group_by(income_group, replicate) %>%
   summarise(discmonqaly_total = sum(discmonqalys_averted, na.rm = TRUE)) %>%
@@ -1680,12 +1703,12 @@ write.csv(discmonqaly_pgdp_income, "analysis/tables/discmonqaly_pgdp_income.csv"
 # undiscounted monetized qalys gained pp vaccinated per income group
 undiscmonqaly_pp_income <- qaly %>%
   mutate(undiscmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted)
-                        * median_wtp_threshold))) %>%
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lg_averted
+    * median_wtp_threshold)) %>%
   group_by(income_group, replicate) %>% # (step 1)
   summarise(undiscmonqalys_total = sum(undiscmonqalys_averted, na.rm=TRUE)) %>% # (step 1)
   left_join(vaccine_iso3c %>% group_by(income_group) %>% summarise(vaccines = sum(vaccines, na.rm = TRUE))) %>% # (step 2)
@@ -1712,12 +1735,12 @@ write.csv(undiscmonqaly_pp_income, "analysis/tables/undiscmonqaly_pp_income.csv"
 # discounted monetized qalys gained pp vaccinated per income group
 discmonqaly_pp_income <- qaly %>%
   mutate(discmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
-                        * median_wtp_threshold))) %>%
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lghat_averted
+    * median_wtp_threshold)) %>%
   group_by(income_group, replicate) %>% # (step 1)
   summarise(discmonqalys_total = sum(discmonqalys_averted, na.rm=TRUE)) %>% # (step 1)
   left_join(vaccine_iso3c %>% group_by(income_group) %>% summarise(vaccines = sum(vaccines, na.rm = TRUE))) %>% # (step 2)
@@ -1744,12 +1767,11 @@ write.csv(discmonqaly_pp_income, "analysis/tables/discmonqaly_pp_income.csv")
 # undiscounted - income
 undiscmonqaly_pp_gdppc_income <- qaly %>%
   mutate(undiscmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted)
-                        * median_wtp_threshold))) %>%
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lg_averted * median_wtp_threshold)) %>%
   group_by(income_group, replicate) %>%
   summarise(undiscmonqalys_total = sum(undiscmonqalys_averted, na.rm = TRUE)) %>%
   left_join(vaccine_iso3c %>% group_by(income_group) %>% summarise(vaccines = sum(vaccines, na.rm = TRUE)),
@@ -1777,12 +1799,11 @@ write.csv(undiscmonqaly_pp_gdppc_income, "analysis/tables/undiscmonqaly_pp_gdppc
 # do the same for discounted
 discmonqaly_pp_gdppc_income <- qaly %>%
   mutate(discmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
-                        * median_wtp_threshold))) %>%
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lghat_averted * median_wtp_threshold)) %>%
   group_by(income_group, replicate) %>%
   summarise(discmonqalys_total = sum(discmonqalys_averted, na.rm = TRUE)) %>%
   left_join(vaccine_iso3c %>% group_by(income_group) %>% summarise(vaccines = sum(vaccines, na.rm = TRUE)),
@@ -1811,11 +1832,11 @@ write.csv(discmonqaly_pp_gdppc_income, "analysis/tables/discmonqaly_pp_gdppc_inc
 # sum world wide
 sum_discqaly <- qaly %>%
   mutate(qalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss),
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss),
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted))
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections),
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)),
+    name == "deaths" ~ lghat_averted
   )) %>%
   group_by(replicate) %>%
   summarise(discqalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
@@ -1834,11 +1855,11 @@ write.csv(sum_discqaly, "analysis/tables/sum_discqaly.csv")
 # discounted qalys per person worldwide
 sum_discqaly_pp <- qaly %>%
   mutate(qalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss),
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss),
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted))
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections),
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)),
+    name == "deaths" ~ lghat_averted
   )) %>%
   group_by(replicate) %>%
   summarise(discqalys_averted_sum = sum(qalys_averted, na.rm=TRUE)) %>%
@@ -1860,12 +1881,11 @@ write.csv(sum_discqaly_pp, "analysis/tables/sum_discqaly_pp.csv")
 # pgdp
 undiscmonqaly_pgdp_world <- qaly %>%
   mutate(undiscmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lg_averted * median_wtp_threshold
   )) %>%
   group_by(replicate) %>%
   summarise(undiscmonqalys_averted_sum = sum(undiscmonqalys_averted, na.rm=TRUE)) %>%
@@ -1885,12 +1905,11 @@ write.csv(undiscmonqaly_pgdp_world, "analysis/tables/undiscmonqaly_pgdp_world.cs
 # pp
 undiscmonqaly_pp_world <- qaly %>%
   mutate(undiscmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lg_averted * median_wtp_threshold
   )) %>%
   group_by(replicate) %>%
   summarise(undiscmonqalys_averted_sum = sum(undiscmonqalys_averted, na.rm=TRUE)) %>%
@@ -1910,12 +1929,11 @@ write.csv(undiscmonqaly_pp_world, "analysis/tables/undiscmonqaly_pp_world.csv")
 # pp_gdppc
 undiscmonqaly_pp_gdppc_world <- qaly %>%
   mutate(undiscmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lg_averted * median_wtp_threshold
   )) %>%
   group_by(replicate) %>%
   summarise(undiscmonqalys_averted_sum = sum(undiscmonqalys_averted, na.rm=TRUE)) %>%
@@ -1936,12 +1954,11 @@ write.csv(undiscmonqaly_pp_gdppc_world, "analysis/tables/undiscmonqaly_pp_gdppc_
 # pgdp
 discmonqaly_pgdp_world <- qaly %>%
   mutate(discmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lghat_averted * median_wtp_threshold
   )) %>%
   group_by(replicate) %>%
   summarise(discmonqalys_averted_sum = sum(discmonqalys_averted, na.rm=TRUE)) %>%
@@ -1961,12 +1978,11 @@ write.csv(discmonqaly_pgdp_world, "analysis/tables/discmonqaly_pgdp_world.csv")
 # pp
 discmonqaly_pp_world <- qaly %>%
   mutate(discmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lghat_averted * median_wtp_threshold
   )) %>%
   group_by(replicate) %>%
   summarise(discmonqalys_averted_sum = sum(discmonqalys_averted, na.rm=TRUE)) %>%
@@ -1986,12 +2002,11 @@ write.csv(discmonqaly_pp_world, "analysis/tables/discmonqaly_pp_world.csv")
 # pp_gdppc
 discmonqaly_pp_gdppc_world <- qaly %>%
   mutate(discmonqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lghat_averted * median_wtp_threshold
   )) %>%
   group_by(replicate) %>%
   summarise(discmonqalys_averted_sum = sum(discmonqalys_averted, na.rm=TRUE)) %>%
@@ -2539,18 +2554,17 @@ vaccine_costs
 # Return on Investment
 # ********************
 
-# welfarist - monetized QALYs, covid-19 healthcare costs, human capital costs, productivity losses
+# CEA - monetized QALYs, covid-19 healthcare costs, human capital costs, productivity losses
 
 # sum of undiscounted monetized qalys
 
 sum_undiscmonqaly <- qaly %>%
   mutate(monqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lg_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lg_averted * median_wtp_threshold
   )) %>%
   group_by(replicate) %>%
   summarise(monqalys_averted_sum = sum(monqalys_averted, na.rm=TRUE)) %>%
@@ -2569,12 +2583,11 @@ write.csv(sum_undiscmonqaly, "analysis/tables/sum_undiscmonqaly.csv")
 # sum of discounted monetized qalys
 sum_discmonqaly <- qaly %>%
   mutate(monqalys_averted = case_when(
-    name == "infections" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "hospitalisations" ~ averted
-    * -(qaly_loss) * median_wtp_threshold,
-    name == "deaths" ~ (((averted * -qaly_loss) + lghat_averted)
-                        * median_wtp_threshold)
+    name == "infections" ~ (symp_infections
+                            * qaly_loss_infections) * median_wtp_threshold,
+    name == "hospitalisations" ~ ((icu_averted * qaly_loss_icu) +
+                                    (nonicu_averted * qaly_loss_hospitalisations)) * median_wtp_threshold,
+    name == "deaths" ~ lghat_averted * median_wtp_threshold
   )) %>%
   group_by(replicate) %>%
   summarise(monqalys_averted_sum = sum(monqalys_averted, na.rm=TRUE)) %>%
@@ -2626,7 +2639,7 @@ saveRDS(sum_hc_costs, "analysis/data/derived/sum_hc_costs.rds")
 
 
 # combine the summaries - undiscounted
-extrawelfarist_undiscsum <- bind_cols(sum_undiscmonqaly, sum_friction, sum_hc_costs) %>%
+CEA_undiscsum <- bind_cols(sum_undiscmonqaly, sum_friction, sum_hc_costs) %>%
   summarise(
     total_low = monqalys_averted_sum_low + friction_costs_total_low + hc_costs_total_low,
     total_med = monqalys_averted_sum_med + friction_costs_total_med + hc_costs_total_med,
@@ -2634,11 +2647,24 @@ extrawelfarist_undiscsum <- bind_cols(sum_undiscmonqaly, sum_friction, sum_hc_co
   )
 
 # save results
-extrawelfarist_undiscsum
-write.csv(extrawelfarist_undiscsum, "analysis/tables/extrawelfarist_undiscsum.csv")
+CEA_undiscsum
+write.csv(CEA_undiscsum, "analysis/tables/CEA_undiscsum.csv")
+
+# NEW: Need total express in percentage of GDP for results section
+
+CEA_undiscsum_pgdp <- CEA_undiscsum %>%
+  mutate(
+    total_low_pgdp  = (total_low  / total_gdp) * 100,
+    total_med_pgdp  = (total_med  / total_gdp) * 100,
+    total_high_pgdp = (total_high / total_gdp) * 100
+  )
+
+# save results
+CEA_undiscsum_pgdp
+write.csv(CEA_undiscsum_pgdp, "analysis/tables/CEA_undiscsum_pgdp.csv")
 
 # combine the summaries - discounted
-extrawelfarist_discsum <- bind_cols(sum_discmonqaly, sum_friction, sum_hc_costs) %>%
+CEA_discsum <- bind_cols(sum_discmonqaly, sum_friction, sum_hc_costs) %>%
   summarise(
     total_low = monqalys_averted_sum_low + friction_costs_total_low + hc_costs_total_low,
     total_med = monqalys_averted_sum_med + friction_costs_total_med + hc_costs_total_med,
@@ -2646,50 +2672,50 @@ extrawelfarist_discsum <- bind_cols(sum_discmonqaly, sum_friction, sum_hc_costs)
   )
 
 # save results
-extrawelfarist_discsum
-write.csv(extrawelfarist_discsum, "analysis/tables/extrawelfarist_discsum.csv")
+CEA_discsum
+write.csv(CEA_discsum, "analysis/tables/CEA_discsum.csv")
 
-# calculate undiscounted extrawelfarist roi
+# NEW: Need total express in percentage of GDP for results section
 
-roi_undiscextrawelfarist <- extrawelfarist_undiscsum %>%
+CEA_discsum_pgdp <- CEA_discsum %>%
+  mutate(
+    total_low_pgdp  = (total_low  / total_gdp) * 100,
+    total_med_pgdp  = (total_med  / total_gdp) * 100,
+    total_high_pgdp = (total_high / total_gdp) * 100
+  )
+
+# save results
+CEA_discsum_pgdp
+write.csv(CEA_discsum_pgdp, "analysis/tables/CEA_discsum_pgdp.csv")
+
+# calculate undiscounted CEA roi
+
+roi_undiscCEA <- CEA_undiscsum %>%
   mutate(roi_low = ((total_low - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
          roi_med = ((total_med - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
          roi_high = ((total_high - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu))) %>%
   select(roi_low, roi_med, roi_high)
 
 # save results
-roi_undiscextrawelfarist
-write.csv(roi_undiscextrawelfarist, "analysis/tables/roi_undiscextrawelfarist.csv")
+roi_undiscCEA
+write.csv(roi_undiscCEA, "analysis/tables/roi_undiscCEA.csv")
 
-# calculate discounted extrawelfarist roi
+# calculate discounted CEA roi
 
-roi_discextrawelfarist <- extrawelfarist_discsum %>%
+roi_discCEA <- CEA_discsum %>%
   mutate(roi_low = ((total_low - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
          roi_med = ((total_med - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
          roi_high = ((total_high - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu))) %>%
   select(roi_low, roi_med, roi_high)
 
 # save results
-roi_discextrawelfarist
-write.csv(roi_discextrawelfarist, "analysis/tables/roi_discextrawelfarist.csv")
-
-# NEW: welfarist main analysis - just VSLs
-vsl_avertedtotal
-
-roi_vsl <- vsl_avertedtotal %>%
-  mutate(roi_low = ((vsl_averted_low - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
-         roi_med = ((vsl_averted_med - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
-         roi_high = ((vsl_averted_high - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu))) %>%
-  select(roi_low, roi_med, roi_high)
-
-# save results
-roi_vsl
-write.csv(roi_vsl, "analysis/tables/roi_vsl.csv")
+roi_discCEA
+write.csv(roi_discCEA, "analysis/tables/roi_discCEA.csv")
 
 
-# NEW: welfarist sensitivity analysis - VSLs + productivity costs + healthcare costs
+# NEW: CBA sensitivity analysis - VSLs + productivity costs + healthcare costs
 
-new_welfarist_sum <- bind_cols(vsl_avertedtotal, sum_friction, sum_hc_costs) %>%
+new_CBA_sum <- bind_cols(vsl_avertedtotal, sum_friction, sum_hc_costs) %>%
   summarise(
     total_low = vsl_averted_low + friction_costs_total_low + hc_costs_total_low,
     total_med = vsl_averted_med + friction_costs_total_med + hc_costs_total_med,
@@ -2697,12 +2723,12 @@ new_welfarist_sum <- bind_cols(vsl_avertedtotal, sum_friction, sum_hc_costs) %>%
   )
 
 # save results
-new_welfarist_sum
-write.csv(new_welfarist_sum, "analysis/tables/new_welfarist_sum.csv")
+new_CBA_sum
+write.csv(new_CBA_sum, "analysis/tables/new_CBA_sum.csv")
 
 # NEW: Need total express in percentage of GDP for results section
 
-new_welfarist_sum_pgdp <- bind_cols(
+new_CBA_sum_pgdp <- bind_cols(
   vsl_avertedtotal,
   sum_friction,
   sum_hc_costs
@@ -2719,77 +2745,20 @@ new_welfarist_sum_pgdp <- bind_cols(
   )
 
 # save results
-new_welfarist_sum_pgdp
-write.csv(new_welfarist_sum_pgdp, "analysis/tables/new_welfarist_sum_pgdp.csv")
+new_CBA_sum_pgdp
+write.csv(new_CBA_sum_pgdp, "analysis/tables/new_CBA_sum_pgdp.csv")
 
-# NEW GOOD: ROI welfairst sensitivity analysis using VSL, productivity costs and healthcare costs
+# NEW GOOD: ROI CBA sensitivity analysis using VSL, productivity costs and healthcare costs
 
-new_roi_welfarist <- new_welfarist_sum %>%
+new_roi_CBA <- new_CBA_sum %>%
   mutate(roi_low = ((total_low - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
          roi_med = ((total_med - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
          roi_high = ((total_high - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu))) %>%
   select(roi_low, roi_med, roi_high)
 
 # save results
-new_roi_welfarist
-write.csv(new_roi_welfarist, "analysis/tables/new_roi_welfarist.csv")
-
-
-# welfarist - VSLYs
-# sum undiscounted and discounted vsly
-## NEW: sensitivity analysis using undiscounted VSLY
-undisc_welfarist_sum <- vsly %>%
-  group_by(replicate) %>%
-  summarise(total = sum(lg_averted*vly, na.rm = TRUE)) %>%
-  summarise(
-    across(total,
-           list(
-             low = lf,
-             med = mf,
-             high = hf
-           )))
-
-# save results
-undisc_welfarist_sum
-write.csv(undisc_welfarist_sum, "analysis/tables/undisc_welfarist_sum.csv")
-
-disc_welfarist_sum <- vsly %>%
-  group_by(replicate) %>%
-  summarise(total = sum(lghat_averted*vly_disc, na.rm = TRUE)) %>%
-  summarise(
-    across(total,
-           list(
-             low = lf,
-             med = mf,
-             high = hf
-           )))
-
-# save results
-disc_welfarist_sum
-write.csv(disc_welfarist_sum, "analysis/tables/disc_welfarist_sum.csv")
-
-# calculate undiscounted welfarist roi --> NEW: sensitivity analysis using undiscounted VSLY
-roi_undiscwelfarist <- undisc_welfarist_sum %>%
-  mutate(roi_low = ((total_low - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
-         roi_med = ((total_med - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
-         roi_high = ((total_high - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu))) %>%
-  select(roi_low, roi_med, roi_high)
-
-# save results
-roi_undiscwelfarist
-write.csv(roi_undiscwelfarist, "analysis/tables/roi_undiscwelfarist.csv")
-
-
-# OLD DO NOT USE: calculate discounted extrawelfarist roi
-roi_discwelfarist <- disc_welfarist_sum %>%
-  mutate(roi_low = ((total_low - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
-         roi_med = ((total_med - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu)),
-         roi_high = ((total_high - (dev_funding + del_cost + apa + corporate + manu))/(dev_funding + del_cost + apa + corporate + manu))) %>%
-  select(roi_low, roi_med, roi_high)
-
-# save results
-roi_discwelfarist
-write.csv(roi_discwelfarist, "analysis/tables/roi_discwelfarist.csv")
+new_roi_CBA
+write.csv(new_roi_CBA, "analysis/tables/new_roi_CBA.csv")
 
 
 
@@ -2803,7 +2772,7 @@ med_contribution <- bind_cols(vsl_avertedtotal, sum_friction, sum_hc_costs) %>%
     hc_share_med = hc_costs_total_med / total_med
   )
 
-extrawelfarist_disc_med <- bind_cols(sum_discmonqaly, sum_friction, sum_hc_costs) %>%
+CEA_disc_med <- bind_cols(sum_discmonqaly, sum_friction, sum_hc_costs) %>%
   summarise(
     total_med = monqalys_averted_sum_med +
       friction_costs_total_med +
@@ -2813,4 +2782,3 @@ extrawelfarist_disc_med <- bind_cols(sum_discmonqaly, sum_friction, sum_hc_costs
     friction_share_med = friction_costs_total_med / total_med,
     hc_share_med = hc_costs_total_med / total_med
   )
-
