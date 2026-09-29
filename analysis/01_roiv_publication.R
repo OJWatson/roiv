@@ -1208,15 +1208,12 @@ age_probs <- age_probs %>%
     age_group == "45-50" ~ 0.321,
     age_group == "50-55" ~ 0.321,
     age_group == "55-60" ~ 0.321,
-    age_group == "60-65" ~ 0.197,
-    age_group == "65-70" ~ 0.321,
-    age_group == "70-75" ~ 0.321,
-    age_group == "75-80" ~ 0.321,
-    age_group == "80+" ~ 0.321
+    age_group %in% c("60-65", "65-70", "70-75", "75-80", "80+") ~ 0.197
   ))
 
 qaly <- qaly %>%
   left_join(age_probs, by = "age_group")
+stopifnot(!any(is.na(qaly$prob_asymp)))
 
 # add new column for ICU hospitalisations (severe)
 qaly <- qaly %>%
